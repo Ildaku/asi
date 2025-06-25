@@ -20,6 +20,7 @@ from sqlalchemy import func, cast, String
 from sqlalchemy.orm import joinedload
 from flask_login import login_user, logout_user, login_required, current_user
 from app.decorators import admin_required, operator_required
+from flask_migrate import upgrade
 
 @app.route('/')
 @login_required
@@ -1227,4 +1228,12 @@ def page_not_found(e):
 
 @app.errorhandler(500)
 def internal_error(e):
-    return render_template('500.html'), 500 
+    return render_template('500.html'), 500
+
+@app.route('/run_migrations')
+def run_migrations():
+    # В целях безопасности: разрешаем только если не debug
+    if not app.debug:
+        upgrade()
+        return "Migrations applied!"
+    return "Not in production mode." 
