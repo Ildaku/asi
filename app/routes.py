@@ -1228,12 +1228,4 @@ def page_not_found(e):
 
 @app.errorhandler(500)
 def internal_error(e):
-    return render_template('500.html'), 500
-
-@app.route('/run_migrations')
-def run_migrations():
-    # В целях безопасности: разрешаем только если не debug
-    if not app.debug:
-        upgrade()
-        return "Migrations applied!"
-    return "Not in production mode." 
+    return render_template('500.html'), 500 
