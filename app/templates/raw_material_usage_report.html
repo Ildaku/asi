@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Отчет по использованию сырья | Planner2{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Отчет по использованию сырья</h1>
+
+<div class="mb-4">
+    <a href="{{ url_for('export_raw_material_usage') }}" class="btn btn-success">
+        <i class="fas fa-file-excel"></i> Экспорт в Excel
+    </a>
+</div>
+
+<form method="POST">
+    {{ form.csrf_token }}
+    <div>
+        {{ form.date_from.label }} {{ form.date_from(size=10) }}
+        {{ form.date_to.label }} {{ form.date_to(size=10) }}
+        {{ form.submit(class="btn btn-primary") }}
+    </div>
+</form>
+{% if usage_data %}
+<table class="table mt-4">
+    <thead>
+        <tr>
+            <th>Вид сырья</th>
+            <th>Партия</th>
+            <th>Израсходовано (кг)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in usage_data %}
+        <tr>
+            <td>{{ row.type_name }}</td>
+            <td>{{ row.batch_number }}</td>
+            <td>{{ "%.2f"|format(row.used_qty) }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% elif usage_data is not none %}
+<p class="mt-4 text-muted">Нет данных за выбранный период.</p>
+{% endif %}
+{% endblock %} 

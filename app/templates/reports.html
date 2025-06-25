@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}Отчёты | Planner2{% endblock %}
+{% block content %}
+    <h1 class="mb-4">Отчёты</h1>
+
+    <!-- Навигация по отчётам -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Статистика производства</h5>
+                    <p class="card-text">Анализ произведенной продукции по типам, рецептурам и партиям.</p>
+                    <a href="{{ url_for('production_statistics') }}" class="btn btn-primary">Открыть отчёт</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Использование сырья</h5>
+                    <p class="card-text">Анализ расхода сырья по типам и партиям за период.</p>
+                    <a href="{{ url_for('raw_material_usage_report') }}" class="btn btn-primary">Открыть отчёт</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Прогноз потребности в сырье</h5>
+                    <p class="card-text">Расчет необходимого количества сырья на основе утвержденных планов производства.</p>
+                    <a href="{{ url_for('raw_material_forecast') }}" class="btn btn-primary">Открыть отчёт</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="mb-3">Остатки сырья на складе</h2>
+    <table class="table table-striped mb-5">
+        <thead>
+        <tr>
+            <th>Вид сырья</th>
+            <th>Партия</th>
+            <th>Остаток (кг)</th>
+            <th>Дата поступления</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for rm in raw_materials %}
+        <tr>
+            <td>{{ rm.type.name }}</td>
+            <td>{{ rm.batch_number }}</td>
+            <td>{{ rm.quantity_kg }}</td>
+            <td>{{ rm.date_received }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <h2 class="mb-3">История производства</h2>
+    <table class="table table-striped mb-4">
+        <thead>
+        <tr>
+            <th>Дата</th>
+            <th>Продукт</th>
+            <th>Партия</th>
+            <th>Количество (кг)</th>
+            <th>Статус</th>
+            <th>Детали</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for plan in plans %}
+        <tr>
+            <td>{{ plan.date }}</td>
+            <td>{{ plan.product.name }}</td>
+            <td>{{ plan.batch_number }}</td>
+            <td>{{ plan.quantity }}</td>
+            <td>{{ plan.status }}</td>
+            <td><a href="{{ url_for('production_plan_detail', plan_id=plan.id) }}" class="btn btn-sm btn-outline-primary">Подробнее</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <a href="/" class="btn btn-link">На главную</a>
+{% endblock %} 

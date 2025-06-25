@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Главная | Planner2{% endblock %}
+{% block content %}
+    <div class="text-center mt-5">
+        <h1 class="mb-4">Система учёта производства</h1>
+        <div class="list-group w-50 mx-auto">
+            <a href="{{ url_for('raw_materials') }}" class="list-group-item list-group-item-action">Сырьё (партии)</a>
+            <a href="{{ url_for('products') }}" class="list-group-item list-group-item-action">Продукты</a>
+            <a href="{{ url_for('production_plans') }}" class="list-group-item list-group-item-action">План производства</a>
+            <a href="{{ url_for('reports') }}" class="list-group-item list-group-item-action">Отчёты</a>
+        </div>
+    </div>
+{% endblock %} 

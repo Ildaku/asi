@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block title %}Планы производства | Planner2{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Главная</a></li>
+        <li class="breadcrumb-item active">Планы производства</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Планы производства</h2>
+        <a href="{{ url_for('create_production_plan') }}" class="btn btn-primary">Создать план производства</a>
+    </div>
+
+    <!-- Фильтры -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('production_plans') }}" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label for="product_id" class="form-label">Продукт</label>
+                    <select name="product_id" id="product_id" class="form-select">
+                        <option value="">Все продукты</option>
+                        {% for p in products %}
+                            <option value="{{ p.id }}" {% if p.id == request.args.get('product_id')|int %}selected{% endif %}>{{ p.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="status" class="form-label">Статус</label>
+                    <select name="status" id="status" class="form-select">
+                        <option value="">Все статусы</option>
+                        <option value="{{ PlanStatus.DRAFT.value }}" {% if PlanStatus.DRAFT.value == request.args.get('status') %}selected{% endif %}>Черновик</option>
+                        <option value="{{ PlanStatus.APPROVED.value }}" {% if PlanStatus.APPROVED.value == request.args.get('status') %}selected{% endif %}>Утверждён</option>
+                        <option value="{{ PlanStatus.IN_PROGRESS.value }}" {% if PlanStatus.IN_PROGRESS.value == request.args.get('status') %}selected{% endif %}>В производстве</option>
+                        <option value="{{ PlanStatus.COMPLETED.value }}" {% if PlanStatus.COMPLETED.value == request.args.get('status') %}selected{% endif %}>Завершен</option>
+                        <option value="{{ PlanStatus.CANCELLED.value }}" {% if PlanStatus.CANCELLED.value == request.args.get('status') %}selected{% endif %}>Отменен</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="date_from" class="form-label">С</label>
+                    <input type="date" name="date_from" id="date_from" value="{{ request.args.get('date_from', '') }}" class="form-control">
+                </div>
+                <div class="col-md-2">
+                    <label for="date_to" class="form-label">По</label>
+                    <input type="date" name="date_to" id="date_to" value="{{ request.args.get('date_to', '') }}" class="form-control">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Применить</button>
+                    <a href="{{ url_for('production_plans') }}" class="btn btn-outline-secondary w-100 mt-2">Сбросить</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Таблица планов -->
+    <div class="table-responsive">
+        <table class="table table-striped table-hover datatable">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Продукт</th>
+                    <th>Рецептура</th>
+                    <th>Партия</th>
+                    <th>Количество (кг)</th>
+                    <th>Статус</th>
+                    <th>Прогресс</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for plan in plans %}
+                <tr>
+                    <td>{{ plan.created_at.strftime('%d.%m.%Y') }}</td>
+                    <td>{{ plan.product.name }}</td>
+                    <td>{{ plan.template.name if plan.template else 'Рецептура удалена' }}</td>
+                    <td>{{ plan.batch_number }}</td>
+                    <td>{{ "%.2f"|format(plan.quantity) }}</td>
+                    <td>
+                        <span class="badge bg-{{ status_colors[plan.status] }}">
+                            {{ plan.status.display if plan.status.display else plan.status }}
+                        </span>
+                    </td>
+                    <td>
+                        {% set progress = plan.get_progress() %}
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar bg-{{ status_colors[plan.status] }}" 
+                                 role="progressbar"
+                                 style="width: {{ progress }}%"
+                                 aria-valuenow="{{ progress }}"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100"
+                                 data-bs-toggle="tooltip"
+                                 title="Выполнено {{ "%.1f"|format(progress) }}%">
+                                {{ "%.1f"|format(progress) }}%
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="btn-group">
+                            {% if plan.template %}
+                            <a href="{{ url_for('production_plan_detail', plan_id=plan.id) }}" 
+                               class="btn btn-sm btn-outline-primary"
+                               data-bs-toggle="tooltip"
+                               title="Просмотр деталей">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% endif %}
+                            <!-- Кнопка изменения статуса для планов с удаленной рецептурой -->
+                            {% if not plan.template %}
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-warning"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#changeStatusModal{{ plan.id }}"
+                                    title="Изменить статус">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            {% endif %}
+                            {% if plan.status == PlanStatus.DRAFT or not plan.template %}
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-danger"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#deletePlanModal{{ plan.id }}"
+                                    title="Удалить план">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Связанные данные -->
+    <div class="related-links">
+        <h5>Связанные разделы</h5>
+        <ul class="list-inline">
+            <li class="list-inline-item">
+                <a href="{{ url_for('recipes') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-book"></i> Рецептуры
+                </a>
+            </li>
+            <li class="list-inline-item">
+                <a href="{{ url_for('production_statistics') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-chart-bar"></i> Статистика производства
+                </a>
+            </li>
+            <li class="list-inline-item">
+                <a href="{{ url_for('raw_material_forecast') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-chart-line"></i> Прогноз сырья
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Модальные окна удаления -->
+    {% for plan in plans %}
+    {% if plan.status == PlanStatus.DRAFT or not plan.template %}
+    <div class="modal fade" id="deletePlanModal{{ plan.id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Подтверждение удаления</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Вы действительно хотите удалить план производства {{ plan.batch_number or '#' + plan.id|string }}?</p>
+                    {% if not plan.template %}
+                    <div class="alert alert-warning">
+                        Рецептура для данного плана была удалена. Рекомендуется удалить план.
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <form method="POST" action="{{ url_for('delete_production_plan', plan_id=plan.id) }}" class="d-inline">
+                        <button type="submit" class="btn btn-danger">Удалить</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+
+    <!-- Модальные окна изменения статуса для планов с удаленной рецептурой -->
+    {% for plan in plans %}
+    {% if not plan.template %}
+    <div class="modal fade" id="changeStatusModal{{ plan.id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Изменение статуса</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" action="{{ url_for('update_plan_status', plan_id=plan.id) }}">
+                    {{ plan_forms[plan.id].csrf_token }}
+                    <div class="modal-body">
+                        <div class="alert alert-info">
+                            Для плана с удаленной рецептурой доступны только статусы "черновик" и "отменён".
+                        </div>
+                        <div class="mb-3">
+                            {{ plan_forms[plan.id].status.label(class="form-label") }}
+                            {{ plan_forms[plan.id].status(class="form-select") }}
+                        </div>
+                        <div class="mb-3">
+                            {{ plan_forms[plan.id].notes.label(class="form-label") }}
+                            {{ plan_forms[plan.id].notes(class="form-control", rows="3") }}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Сохранить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // Инициализация таблицы с настройками
+    $('.datatable').DataTable({
+        language: {
+            url: 'https://cdn.datatables.net/plug-ins/1.11.5/i18n/ru.json'
+        },
+        pageLength: 25,
+        order: [[0, 'desc']],
+        responsive: true
+    });
+
+    // Инициализация тултипов
+    $('[data-bs-toggle="tooltip"]').tooltip();
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}Статистика производства | Planner2{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Статистика производства</h2>
+    
+    <div class="mb-4">
+        <a href="{{ url_for('export_production_statistics') }}" class="btn btn-success">
+            <i class="fas fa-file-excel"></i> Экспорт в Excel
+        </a>
+    </div>
+
+    <!-- Форма выбора периода -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="POST" class="row g-3 align-items-end">
+                {{ form.csrf_token }}
+                <div class="col-auto">
+                    {{ form.date_from.label(class="form-label") }}
+                    {{ form.date_from(class="form-control") }}
+                </div>
+                <div class="col-auto">
+                    {{ form.date_to.label(class="form-label") }}
+                    {{ form.date_to(class="form-control") }}
+                </div>
+                <div class="col-auto">
+                    {{ form.submit(class="btn btn-primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Таблица со статистикой -->
+    {% if statistics_data %}
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Детализация по партиям</h5>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Дата</th>
+                            <th>Продукт</th>
+                            <th>Рецептура</th>
+                            <th>Номер партии</th>
+                            <th>Плановое кол-во</th>
+                            <th>Замесы</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for plan in statistics_data %}
+                        <tr class="align-middle">
+                            <td>{{ plan.created_at.strftime('%d.%m.%Y') }}</td>
+                            <td>{{ plan.product.name }}</td>
+                            <td>{{ plan.template.name }}</td>
+                            <td>{{ plan.batch_number }}</td>
+                            <td>{{ "%.2f"|format(plan.quantity) }} кг</td>
+                            <td>
+                                {% if plan.batches %}
+                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#batches-{{ plan.id }}" aria-expanded="false" aria-controls="batches-{{ plan.id }}">
+                                    {{ plan.batches|length }}
+                                </button>
+                                {% else %}
+                                <span>0</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if plan.batches %}
+                        <tr>
+                            <td colspan="6" class="p-0 border-0">
+                                <div class="collapse" id="batches-{{ plan.id }}">
+                                    <div class="p-3 bg-light">
+                                        <h6 class="mb-2">Замесы по плану №{{ plan.batch_number }}</h6>
+                                        <table class="table table-sm table-bordered mb-0">
+                                            <thead class="table-dark">
+                                                <tr>
+                                                    <th>Номер замеса</th>
+                                                    <th>Вес (кг)</th>
+                                                    <th>Дата создания</th>
+                                                    <th>Ингредиенты</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for batch in plan.batches %}
+                                                <tr class="align-middle">
+                                                    <td>{{ batch.batch_number }}</td>
+                                                    <td>{{ "%.2f"|format(batch.weight) }} кг</td>
+                                                    <td>{{ batch.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                                                    <td>
+                                                        {% if batch.materials %}
+                                                        <button class="btn btn-sm btn-outline-info py-0 px-1" type="button" data-bs-toggle="collapse" data-bs-target="#materials-{{ batch.id }}">
+                                                            {{ batch.materials|length }}
+                                                        </button>
+                                                        {% else %}
+                                                        <span>0</span>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% if batch.materials %}
+                                                <tr>
+                                                    <td colspan="4" class="p-0 border-0">
+                                                        <div class="collapse" id="materials-{{ batch.id }}">
+                                                            <div class="p-3" style="background-color: #f8f9fa;">
+                                                                <h6 class="mb-2" style="font-size: 0.9rem;">Ингредиенты замеса №{{ batch.batch_number }}</h6>
+                                                                <table class="table table-sm table-bordered mb-0">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th>Сырьё</th>
+                                                                            <th>Партия</th>
+                                                                            <th>Количество</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {% for material in batch.materials %}
+                                                                        <tr>
+                                                                            <td>{{ material.material_batch.material.type.name }}</td>
+                                                                            <td>{{ material.material_batch.batch_number }}</td>
+                                                                            <td>{{ "%.2f"|format(material.quantity) }} кг</td>
+                                                                        </tr>
+                                                                        {% endfor %}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {% endif %}
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Итоги по продуктам -->
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Итоги по продуктам</h5>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Продукт</th>
+                            <th>Рецептура</th>
+                            <th>Количество планов</th>
+                            <th>Всего произведено (кг)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for total in totals.values() %}
+                        <tr>
+                            <td>{{ total.product_name }}</td>
+                            <td>{{ total.recipe_name }}</td>
+                            <td>{{ total.plans_count }}</td>
+                            <td>{{ "%.2f"|format(total.total_quantity) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% elif statistics_data is not none %}
+    <div class="alert alert-info">
+        За выбранный период нет завершенных планов производства.
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>
+                План производства №{{ plan.batch_number }}
+                <span class="badge bg-{{ status_colors[plan.status] }}">
+                    {{ plan.status.display if plan.status.display else plan.status }}
+                </span>
+            </h2>
+            <p class="text-muted">
+                Продукт: {{ plan.product.name }}<br>
+                Рецептура: {{ plan.template.name }}<br>
+                Количество: {{ "%.2f"|format(plan.quantity) }} кг<br>
+                Дата: {{ plan.created_at.strftime('%d.%m.%Y') }}
+            </p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('production_plans') }}" class="btn btn-outline-secondary">← К списку планов</a>
+        </div>
+    </div>
+
+    <!-- Прогресс производства -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Прогресс производства</h5>
+            <div class="progress mb-3" style="height: 25px;">
+                <div class="progress-bar bg-{{ status_colors[plan.status] }}"
+                     role="progressbar"
+                     style="width: {{ progress_percent }}%"
+                     aria-valuenow="{{ progress_percent }}"
+                     aria-valuemin="0"
+                     aria-valuemax="100">
+                    {{ "%.1f"|format(progress_percent) }}%
+                </div>
+            </div>
+            <p class="mb-0">
+                Произведено: {{ "%.2f"|format(total_produced) }} кг из {{ "%.2f"|format(plan.quantity) }} кг
+            </p>
+        </div>
+    </div>
+
+    <!-- Статус и примечания -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <!-- Форма смены статуса -->
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Изменить статус</h5>
+                    <form method="POST" action="{{ url_for('update_plan_status', plan_id=plan.id) }}">
+                        {{ status_form.csrf_token }}
+                        <div class="mb-3">
+                            {{ status_form.status.label }}
+                            {{ status_form.status(class="form-control") }}
+                        </div>
+                        <div class="mb-3">
+                            {{ status_form.notes.label }}
+                            {{ status_form.notes(class="form-control", rows="3") }}
+                        </div>
+                        {{ status_form.submit(class="btn btn-primary") }}
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <!-- История примечаний -->
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">История примечаний</h5>
+                    {% if plan.notes %}
+                    <pre class="border rounded p-3 bg-light" style="max-height: 200px; overflow-y: auto;">{{ plan.notes }}</pre>
+                    {% else %}
+                    <p class="text-muted">Примечаний пока нет.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Проверка сырья -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Наличие сырья</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Сырьё</th>
+                            <th>Требуется</th>
+                            <th>Доступно</th>
+                            <th>Статус</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for type_id, data in raw_materials_availability.items() %}
+                        <tr>
+                            <td>{{ data.type.name }}</td>
+                            <td>{{ "%.2f"|format(data.quantity_needed) }} кг</td>
+                            <td>{{ "%.2f"|format(data.quantity_available) }} кг</td>
+                            <td>
+                                {% if data.is_available %}
+                                <span class="badge bg-success">Достаточно</span>
+                                {% else %}
+                                <span class="badge bg-danger">
+                                    Не хватает {{ "%.2f"|format(data.shortage) }} кг
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if not can_start %}
+            <div class="alert alert-warning mt-3">
+                {{ start_message }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Замесы -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">Замесы</h5>
+            {% if plan.status == PlanStatus.APPROVED or plan.status == PlanStatus.IN_PROGRESS %}
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addBatchModal">
+                + Добавить замес
+            </button>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            {% if batches_info %}
+            {% for batch_info in batches_info %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">Замес №{{ batch_info.batch.batch_number }}</h6>
+                        <span>{{ "%.2f"|format(batch_info.batch.weight) }} кг</span>
+                        {% if plan.status != PlanStatus.COMPLETED %}
+                        <form method="POST" action="{{ url_for('delete_batch', batch_id=batch_info.batch.id) }}" style="display:inline;" onsubmit="return confirm('Удалить этот замес?');">
+                            {{ batch_form.csrf_token }}
+                            <button type="submit" class="btn btn-danger btn-sm ms-2">Удалить</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Сырьё</th>
+                                    <th>Нужно</th>
+                                    <th>Добавлено</th>
+                                    <th>Осталось</th>
+                                    {% if plan.status in [PlanStatus.APPROVED, PlanStatus.IN_PROGRESS] %}
+                                    <th>Действия</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for info in batch_info.ingredients %}
+                                <tr>
+                                    <td>
+                                        {{ info.type.name }}
+                                        {# Суммированный список партий (контрольный) #}
+                                        {% if info.added_materials %}
+                                            <ul class="list-unstyled mb-0 ps-3">
+                                            {% for mat_instance in info.added_materials %}
+                                                <li>
+                                                    <small class="fw-bold text-primary">
+                                                        Партия: {{ mat_instance.batch_number }} ({{ "%.2f"|format(mat_instance.quantity) }} кг)
+                                                    </small>
+                                                </li>
+                                            {% endfor %}
+                                            </ul>
+                                        {% endif %}
+
+                                        {# Детальный список партий с удалением #}
+                                        {% if info.original_batch_materials %}
+                                            <ul class="list-unstyled mb-0 ps-3">
+                                            {% for bi in info.original_batch_materials %}
+                                                <li class="d-flex justify-content-between align-items-center">
+                                                    <small class="text-muted">
+                                                        Партия: {{ bi.material_batch.batch_number }} ({{ "%.2f"|format(bi.quantity) }} кг)
+                                                    </small>
+                                                    {% if plan.status != PlanStatus.COMPLETED %}
+                                                    <form method="POST" action="{{ url_for('delete_batch_ingredient', ingredient_id=bi.id) }}" style="display: inline;">
+                                                        <button type="submit" class="btn btn-link btn-sm text-danger p-0" onclick="return confirm('Удалить этот ингредиент?');" title="Удалить">
+                                                            &times;
+                                                        </button>
+                                                    </form>
+                                                    {% endif %}
+                                                </li>
+                                            {% endfor %}
+                                            </ul>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ "%.2f"|format(info.need_qty) }} кг</td>
+                                    <td>{{ "%.2f"|format(info.added_qty) }} кг</td>
+                                    <td>{{ "%.2f"|format(info.to_add_qty) }} кг</td>
+                                    {% if plan.status in [PlanStatus.APPROVED, PlanStatus.IN_PROGRESS] %}
+                                    <td>
+                                        {% if info.to_add_qty > 0 %}
+                                        <button class="btn btn-sm btn-outline-primary"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#addIngredientModal"
+                                                data-batch-id="{{ batch_info.batch.id }}"
+                                                data-type-id="{{ info.type.id }}">
+                                            Добавить
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p class="text-muted">Замесы пока не добавлены.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно добавления замеса -->
+<div class="modal fade" id="addBatchModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Добавить замес</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_batch', plan_id=plan.id) }}">
+                <div class="modal-body">
+                    {{ batch_form.csrf_token }}
+                    <div class="mb-3">
+                        {{ batch_form.batch_number.label }}
+                        {{ batch_form.batch_number(class="form-control") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ batch_form.quantity.label }}
+                        {{ batch_form.quantity(class="form-control", min="0.01", step="0.01") }}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    {{ batch_form.submit(class="btn btn-primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно добавления ингредиента -->
+<div class="modal fade" id="addIngredientModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Добавить ингредиент</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_batch_ingredient', plan_id=plan.id) }}">
+                <div class="modal-body">
+                    {{ batch_ingredient_form.csrf_token }}
+                    <input type="hidden" name="batch_id" id="ingredientBatchId">
+                    <div class="mb-3">
+                        {{ batch_ingredient_form.raw_material_id.label }}
+                        {{ batch_ingredient_form.raw_material_id(class="form-select") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ batch_ingredient_form.quantity.label }}
+                        {{ batch_ingredient_form.quantity(class="form-control", min="0.01", step="0.01") }}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    {{ batch_ingredient_form.submit(class="btn btn-primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var addIngredientModal = document.getElementById('addIngredientModal');
+    if (addIngredientModal) {
+        addIngredientModal.addEventListener('show.bs.modal', function(event) {
+            var button = event.relatedTarget;
+            var batchId = button.getAttribute('data-batch-id');
+            var typeId = button.getAttribute('data-type-id');
+            document.getElementById('ingredientBatchId').value = batchId;
+            
+            // Загружаем доступное сырье
+            fetch('/raw_materials/available/' + typeId)
+                .then(response => response.json())
+                .then(data => {
+                    var select = document.getElementById('raw_material_id');
+                    select.innerHTML = ''; // Очищаем список
+                    
+                    // Добавляем пустой элемент
+                    var emptyOption = document.createElement('option');
+                    emptyOption.value = '';
+                    emptyOption.text = 'Выберите сырье';
+                    select.appendChild(emptyOption);
+                    
+                    // Добавляем доступное сырье
+                    data.forEach(function(material) {
+                        var option = document.createElement('option');
+                        option.value = material.id;
+                        option.text = material.name;
+                        select.appendChild(option);
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        });
+    }
+});
+</script>
+{% endblock %} 

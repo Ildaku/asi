@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}Сырьё | Planner2{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Главная</a></li>
+        <li class="breadcrumb-item active">Сырьё</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>
+        Сырьё
+        <i class="fas fa-question-circle help-icon" 
+           data-bs-toggle="tooltip" 
+           title="Здесь вы можете управлять партиями сырья. Каждая партия имеет свой уникальный номер, количество и дату поступления. Администратор может корректировать количество в любую сторону для учета реальных остатков на складе."></i>
+    </h1>
+    {% if current_user.is_admin() %}
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMaterialModal">
+        <i class="fas fa-plus"></i> Добавить партию
+    </button>
+    {% endif %}
+</div>
+
+<!-- Таблица сырья -->
+<div class="table-responsive">
+    <table class="table table-striped table-hover datatable">
+        <thead>
+            <tr>
+                <th>Дата поступления</th>
+                <th>Вид сырья</th>
+                <th>Партия</th>
+                <th>Количество (кг)</th>
+                <th>Годен до</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for material in materials %}
+            <tr>
+                <td>{{ material.date_received.strftime('%d.%m.%Y') if material.date_received else 'N/A' }}</td>
+                <td>{{ material.type.name if material.type else 'N/A' }}</td>
+                <td>{{ material.batch_number or 'N/A' }}</td>
+                <td>{{ "%.2f"|format(material.quantity_kg) if material.quantity_kg is not none else '0.00' }} кг</td>
+                <td>
+                    {% if material.expiration_date %}
+                        {% if material.days_until_expiry is not none %}
+                            {% if material.days_until_expiry < 0 %}
+                                <span class="badge bg-danger" data-bs-toggle="tooltip" title="Просрочено">
+                                    {{ material.expiration_date.strftime('%d.%m.%Y') }}
+                                </span>
+                            {% elif material.days_until_expiry <= 180 %}
+                                <span class="badge bg-warning" data-bs-toggle="tooltip" title="Истекает через {{ material.days_until_expiry }} дней">
+                                    {{ material.expiration_date.strftime('%d.%m.%Y') }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-success">
+                                    {{ material.expiration_date.strftime('%d.%m.%Y') }}
+                                </span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-success">
+                                {{ material.expiration_date.strftime('%d.%m.%Y') }}
+                            </span>
+                        {% endif %}
+                    {% else %}
+                        <span class="text-muted">Не указан</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if current_user.is_admin() %}
+                    <div class="btn-group">
+                        <a href="{{ url_for('edit_raw_material', id=material.id) }}" 
+                           class="btn btn-sm btn-outline-primary"
+                           data-bs-toggle="tooltip"
+                           title="Корректировать партию">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <button type="button" 
+                                class="btn btn-sm btn-outline-danger"
+                                data-bs-toggle="modal"
+                                data-bs-target="#deleteMaterialModal{{ material.id }}"
+                                title="Удалить партию">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    {% else %}
+                    <span class="text-muted">Только просмотр</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Связанные данные -->
+<div class="related-links">
+    <h5>Связанные разделы</h5>
+    <ul class="list-inline">
+        <li class="list-inline-item">
+            <a href="{{ url_for('raw_material_types') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-tags"></i> Виды сырья
+            </a>
+        </li>
+        <li class="list-inline-item">
+            <a href="{{ url_for('raw_material_usage_report') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-chart-bar"></i> Отчет по использованию
+            </a>
+        </li>
+        <li class="list-inline-item">
+            <a href="{{ url_for('raw_material_forecast') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-chart-line"></i> Прогноз потребности
+            </a>
+        </li>
+    </ul>
+</div>
+
+<!-- Модальное окно добавления -->
+<div class="modal fade" id="addMaterialModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Добавить партию сырья</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST">
+                    {{ form.csrf_token }}
+                    <div class="mb-3">
+                        {{ form.type_id.label(class="form-label") }}
+                        {{ form.type_id(class="form-select") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.batch_number.label(class="form-label") }}
+                        {{ form.batch_number(class="form-control") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.quantity_kg.label(class="form-label") }}
+                        {{ form.quantity_kg(class="form-control") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.date_received.label(class="form-label") }}
+                        {{ form.date_received(class="form-control", type="date") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.expiration_date.label(class="form-label") }}
+                        {{ form.expiration_date(class="form-control", type="date") }}
+                    </div>
+                    <button type="submit" class="btn btn-primary">Добавить</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальные окна удаления -->
+{% for material in materials %}
+<div class="modal fade" id="deleteMaterialModal{{ material.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Подтверждение удаления</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы действительно хотите удалить партию сырья {{ material.type.name }} №{{ material.batch_number }}?</p>
+                {% if material.get_usage() > 0 %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Внимание! Это сырье уже используется в замесах. Удаление может привести к ошибкам в учете.
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <form method="POST" action="{{ url_for('delete_raw_material', id=material.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-danger">Удалить</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    $('.datatable').DataTable({
+        language: {
+            url: 'https://cdn.datatables.net/plug-ins/1.11.5/i18n/ru.json'
+        },
+        pageLength: 25,
+        order: [[0, 'desc']],
+        responsive: true,
+        columns: [
+            { type: 'date' },    // Дата поступления
+            null,                // Вид сырья
+            null,                // Партия
+            { type: 'numeric' }, // Количество
+            null,                // Годен до
+            { orderable: false } // Действия
+        ]
+    });
+});
+</script>
+{% endblock %} 

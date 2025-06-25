@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Ошибка сервера | Planner2{% endblock %}
+{% block content %}
+<div class="text-center mt-5">
+    <img src="/static/company_logo.jpg" alt="Логотип" class="logo mb-4">
+    <h1 class="display-4 text-danger">500</h1>
+    <h2 class="mb-3">Внутренняя ошибка сервера</h2>
+    <p class="lead">Что-то пошло не так. Попробуйте обновить страницу или вернуться на главную.</p>
+    <a href="/" class="btn btn-primary btn-lg mt-3">На главную</a>
+</div>
+{% endblock %} 

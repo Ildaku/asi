@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block title %}Прогноз потребности в сырье | Planner2{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Прогноз потребности в сырье</h1>
+
+<div class="mb-4">
+    <a href="{{ url_for('export_raw_material_forecast') }}" class="btn btn-success">
+        <i class="fas fa-file-excel"></i> Экспорт в Excel
+    </a>
+</div>
+
+<div class="alert alert-info">
+    <i class="fas fa-info-circle"></i> Прогноз основан на утвержденных планах производства
+</div>
+
+<!-- Текущие остатки -->
+<h2 class="mb-3">Текущие остатки сырья</h2>
+<div class="table-responsive mb-4">
+    <table class="table table-bordered">
+        <thead class="table-light">
+            <tr>
+                <th>Вид сырья</th>
+                <th>Остаток (кг)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for type in raw_material_types %}
+            <tr>
+                <td>{{ type.name }}</td>
+                <td>{{ "%.2f"|format(current_stock.get(type.id, 0)) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Прогноз по дням -->
+<h2 class="mb-3">Прогноз расхода по дням</h2>
+{% if sorted_dates %}
+<div class="table-responsive mb-4">
+    <table class="table table-bordered">
+        <thead class="table-light">
+            <tr>
+                <th>Дата</th>
+                {% for type in raw_material_types %}
+                <th>{{ type.name }} (кг)</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for date in sorted_dates %}
+            <tr>
+                <td>{{ date }}</td>
+                {% for type in raw_material_types %}
+                <td>{{ "%.2f"|format(forecast[date][type.id]) }}</td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+        <!-- Итоговая строка -->
+        <tfoot class="table-light">
+            <tr>
+                <th>Общая потребность:</th>
+                {% for type in raw_material_types %}
+                <th>{{ "%.2f"|format(cumulative_usage[type.id]) }}</th>
+                {% endfor %}
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+<!-- Анализ достаточности -->
+<h2 class="mb-3">Анализ достаточности сырья</h2>
+<div class="table-responsive mb-4">
+    <table class="table table-bordered">
+        <thead class="table-light">
+            <tr>
+                <th>Вид сырья</th>
+                <th>Текущий остаток (кг)</th>
+                <th>Общая потребность (кг)</th>
+                <th>Баланс (кг)</th>
+                <th>Статус</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for type in raw_material_types %}
+            {% set balance = current_stock.get(type.id, 0) - cumulative_usage[type.id] %}
+            <tr>
+                <td>{{ type.name }}</td>
+                <td>{{ "%.2f"|format(current_stock.get(type.id, 0)) }}</td>
+                <td>{{ "%.2f"|format(cumulative_usage[type.id]) }}</td>
+                <td>{{ "%.2f"|format(balance) }}</td>
+                <td>
+                    {% if balance >= 0 %}
+                    <span class="badge bg-success">Достаточно</span>
+                    {% else %}
+                    <span class="badge bg-danger">Требуется докупить {{ "%.2f"|format(-balance) }} кг</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle"></i> Нет утвержденных планов производства для прогноза
+</div>
+{% endif %}
+
+<a href="{{ url_for('reports') }}" class="btn btn-secondary">
+    <i class="fas fa-arrow-left"></i> Назад к отчётам
+</a>
+{% endblock %} 

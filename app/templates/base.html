@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Planner2{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --main-blue: #174fa3;
+            --main-blue-dark: #113366;
+            --main-blue-light: #e6f0fa;
+        }
+        body {
+            background: #fff;
+            color: #111;
+        }
+        .logo {
+            height: 48px;
+            margin-right: 8px;
+        }
+        .navbar {
+            background: var(--main-blue) !important;
+        }
+        .navbar-brand, .navbar-brand span {
+            color: #fff !important;
+            font-weight: bold;
+        }
+        .navbar .btn, .navbar .btn:visited {
+            color: #fff;
+            background: var(--main-blue-dark);
+            border: none;
+        }
+        .navbar .btn:hover {
+            background: #0d2c5a;
+        }
+        .table thead {
+            background: var(--main-blue-dark);
+            color: #fff;
+        }
+        .table-striped > tbody > tr:nth-of-type(odd) {
+            background-color: var(--main-blue-light);
+        }
+        .alert-primary {
+            background: var(--main-blue-light);
+            color: var(--main-blue-dark);
+        }
+        .tooltip-inner {
+            max-width: 300px;
+            text-align: left;
+        }
+        .help-icon {
+            color: #6c757d;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+        .breadcrumb {
+            background-color: #f8f9fa;
+            padding: 0.75rem 1rem;
+            border-radius: 0.25rem;
+        }
+        .table-hover tbody tr:hover {
+            background-color: rgba(0,0,0,.075);
+            cursor: pointer;
+        }
+        .dataTables_filter {
+            margin-bottom: 1rem;
+        }
+        .dataTables_length {
+            margin-bottom: 1rem;
+        }
+        .related-links {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 0.25rem;
+        }
+        .related-links h5 {
+            margin-bottom: 0.5rem;
+        }
+        .related-links ul {
+            margin-bottom: 0;
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+{% set user = current_user if current_user.is_authenticated else None %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="/">
+            <span>Система учёта производства</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="/raw_materials"
+                       data-bs-toggle="tooltip" title="Управление сырьем и его партиями">
+                        Сырьё
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/products"
+                       data-bs-toggle="tooltip" title="Управление продуктами">
+                        Продукты
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/recipes"
+                       data-bs-toggle="tooltip" title="Создание и редактирование рецептур">
+                        Рецептуры
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/production_plans"
+                       data-bs-toggle="tooltip" title="Планирование и контроль производства">
+                        Планы производства
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/reports"
+                       data-bs-toggle="tooltip" title="Просмотр отчетов и аналитики">
+                        Отчёты
+                    </a>
+                </li>
+            </ul>
+            <ul class="navbar-nav ms-auto">
+                {% if user %}
+                    <li class="nav-item">
+                        <span class="navbar-text me-2">Здравствуйте, {{ user.username }}!</span>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link ms-3" href="{{ url_for('logout') }}">Выйти</a>
+                    </li>
+                {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('login') }}">Войти</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>
+<div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% block breadcrumb %}{% endblock %}
+    {% block content %}{% endblock %}
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Инициализация тултипов
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+
+        // Обработка кликов по строкам таблицы
+        $('.table-hover tbody tr').click(function() {
+            var href = $(this).data('href');
+            if (href) {
+                window.location = href;
+            }
+        });
+    });
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html> 

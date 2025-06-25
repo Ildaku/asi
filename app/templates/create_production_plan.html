@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>Создание плана производства</h2>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('production_plans') }}" class="btn btn-outline-secondary">← К списку планов</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" class="row g-3">
+                {{ form.csrf_token }}
+                
+                <div class="col-md-6">
+                    <label class="form-label">{{ form.product_id.label }}</label>
+                    {{ form.product_id(class="form-select") }}
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label">{{ form.template_id.label }}</label>
+                    {{ form.template_id(class="form-select") }}
+                </div>
+                
+                <div class="col-md-4">
+                    <label class="form-label">{{ form.batch_number.label }}</label>
+                    {{ form.batch_number(class="form-control") }}
+                    {% if form.batch_number.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in form.batch_number.errors %}
+                        {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-4">
+                    <label class="form-label">{{ form.quantity.label }}</label>
+                    {{ form.quantity(class="form-control", min="0.01", step="0.01") }}
+                    {% if form.quantity.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in form.quantity.errors %}
+                        {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-4">
+                    <label class="form-label">{{ form.date.label }}</label>
+                    {{ form.date(class="form-control", type="date") }}
+                    {% if form.date.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in form.date.errors %}
+                        {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-12">
+                    <label class="form-label">{{ form.notes.label }}</label>
+                    {{ form.notes(class="form-control", rows="3") }}
+                    {% if form.notes.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in form.notes.errors %}
+                        {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-12">
+                    {{ form.submit(class="btn btn-primary me-2") }}
+                    {{ form.approve(class="btn btn-success") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var productSelect = document.getElementById('product_id');
+    var recipeSelect = document.getElementById('template_id');
+    
+    productSelect.addEventListener('change', function() {
+        var productId = this.value;
+        
+        // Очищаем список рецептур
+        recipeSelect.innerHTML = '';
+        
+        if (productId) {
+            // Получаем список рецептур для выбранного продукта
+            fetch('/recipes/by_product/' + productId)
+                .then(response => response.json())
+                .then(recipes => {
+                    recipes.forEach(recipe => {
+                        var option = document.createElement('option');
+                        option.value = recipe.id;
+                        option.textContent = recipe.name;
+                        recipeSelect.appendChild(option);
+                    });
+                });
+        }
+    });
+});
+</script>
+{% endblock %} 

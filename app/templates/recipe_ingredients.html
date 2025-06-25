@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <h2>
+                Рецептура: {{ recipe.name }}
+                {% if recipe.status == 'draft' %}
+                <span class="badge bg-warning">Черновик</span>
+                {% else %}
+                <span class="badge bg-success">Сохранена</span>
+                {% endif %}
+            </h2>
+            <p class="text-muted">Продукт: {{ recipe.product.name }}</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('recipes') }}" class="btn btn-outline-secondary">← К списку рецептур</a>
+        </div>
+    </div>
+
+    {% if recipe.status == 'draft' and current_user.is_admin() %}
+    <!-- Форма добавления ингредиента -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Добавить ингредиент</h5>
+            <form method="POST" class="row g-3">
+                {{ form.csrf_token }}
+                <div class="col-md-5">
+                    {{ form.material_type_id.label }}
+                    {{ form.material_type_id(class="form-control") }}
+                </div>
+                <div class="col-md-5">
+                    {{ form.percentage.label }}
+                    {{ form.percentage(class="form-control") }}
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    {{ form.submit(class="btn btn-primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Список ингредиентов -->
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Ингредиенты</h5>
+                <div>
+                    <span class="badge {% if total_percent == 100 %}bg-success{% elif total_percent > 100 %}bg-danger{% else %}bg-warning{% endif %}">
+                        Всего: {{ "%.2f"|format(total_percent) }}%
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if ingredients %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Сырьё</th>
+                            <th>Процент</th>
+                            {% if recipe.status == 'draft' %}
+                            <th>Действия</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ingredient in ingredients %}
+                        <tr>
+                            <td>{{ ingredient.material_type.name }}</td>
+                            <td>{{ "%.2f"|format(ingredient.percentage) }}%</td>
+                            {% if recipe.status == 'draft' and current_user.is_admin() %}
+                            <td>
+                                <form action="{{ url_for('delete_recipe_ingredient', recipe_id=recipe.id, ingredient_id=ingredient.id) }}"
+                                      method="POST" style="display: inline;">
+                                    <button type="submit" class="btn btn-sm btn-danger"
+                                            onclick="return confirm('Удалить ингредиент из рецептуры?')">
+                                        Удалить
+                                    </button>
+                                </form>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">Ингредиенты пока не добавлены.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if recipe.status == 'draft' and ingredients and current_user.is_admin() %}
+    <div class="mt-4">
+        <form method="POST">
+            {{ form.csrf_token }}
+            <button type="submit" name="save_recipe" class="btn btn-success">
+                Сохранить рецептуру
+            </button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% block title %}Продукты | Planner2{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Главная</a></li>
+        <li class="breadcrumb-item active">Продукты</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>
+        Продукты
+        <i class="fas fa-question-circle help-icon" 
+           data-bs-toggle="tooltip" 
+           title="Здесь вы можете управлять списком продуктов. Для каждого продукта можно создавать рецептуры и планировать производство."></i>
+    </h1>
+    {% if current_user.is_admin() %}
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductModal">
+        <i class="fas fa-plus"></i> Добавить продукт
+    </button>
+    {% endif %}
+</div>
+
+<!-- Таблица продуктов -->
+<div class="table-responsive">
+    <table class="table table-striped table-hover datatable">
+        <thead>
+            <tr>
+                <th>Название</th>
+                <th>Количество рецептур</th>
+                <th>Планов производства</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in products %}
+            <tr>
+                <td>{{ p.name }}</td>
+                <td>{{ p.recipe_templates|length }}</td>
+                <td>{{ p.production_plans|length }}</td>
+                <td>
+                    {% if current_user.is_admin() %}
+                    <div class="btn-group">
+                        <button type="button" 
+                                class="btn btn-sm btn-outline-danger"
+                                data-bs-toggle="modal"
+                                data-bs-target="#deleteProductModal{{ p.id }}"
+                                title="Удалить продукт"
+                                {% if p.recipe_templates or p.production_plans %}disabled{% endif %}>
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    {% else %}
+                    <span class="text-muted">Только просмотр</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Модальное окно добавления -->
+<div class="modal fade" id="addProductModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Добавить продукт</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control") }}
+                    </div>
+                    {{ form.submit(class="btn btn-primary") }}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальные окна удаления -->
+{% for p in products %}
+<div class="modal fade" id="deleteProductModal{{ p.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Подтверждение удаления</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы действительно хотите удалить продукт "{{ p.name }}"?</p>
+                {% if p.recipe_templates %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Продукт нельзя удалить, так как для него существует {{ p.recipe_templates|length }} рецептур.
+                </div>
+                {% endif %}
+                {% if p.production_plans %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Продукт нельзя удалить, так как для него существует {{ p.production_plans|length }} планов производства.
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                {% if not p.recipe_templates and not p.production_plans %}
+                <form method="POST" action="{{ url_for('delete_product', id=p.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-danger">Удалить</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Связанные разделы -->
+<div class="related-links mt-4">
+    <h5>Связанные разделы</h5>
+    <ul class="list-inline">
+        <li class="list-inline-item">
+            <a href="{{ url_for('recipes') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-book"></i> Рецептуры
+            </a>
+        </li>
+        <li class="list-inline-item">
+            <a href="{{ url_for('production_plans') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-tasks"></i> Планы производства
+            </a>
+        </li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    $('.datatable').DataTable({
+        language: {
+            url: 'https://cdn.datatables.net/plug-ins/1.11.5/i18n/ru.json'
+        },
+        pageLength: 25,
+        order: [[0, 'asc']],
+        responsive: true,
+        columns: [
+            null,                // Название
+            { type: 'numeric' }, // Количество рецептур
+            { type: 'numeric' }, // Планов производства
+            { orderable: false } // Действия
+        ]
+    });
+});
+</script>
+{% endblock %} 
