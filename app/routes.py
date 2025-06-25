@@ -1271,4 +1271,23 @@ def fix_enum():
         return "ENUM userrole successfully recreated with ADMIN and OPERATOR values"
     except Exception as e:
         db.session.rollback()
-        return f"Error fixing ENUM: {str(e)}" 
+        return f"Error fixing ENUM: {str(e)}"
+
+# Временный маршрут для применения миграций
+@app.route('/apply_migrations')
+def apply_migrations():
+    try:
+        from alembic import command
+        from alembic.config import Config
+        import os
+        
+        # Создаем конфигурацию Alembic
+        alembic_cfg = Config("migrations/alembic.ini")
+        alembic_cfg.set_main_option("script_location", "migrations")
+        
+        # Применяем миграции
+        command.upgrade(alembic_cfg, "head")
+        
+        return "Migrations applied successfully"
+    except Exception as e:
+        return f"Error applying migrations: {str(e)}" 
