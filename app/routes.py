@@ -4,7 +4,7 @@ from app import app, db
 from app.models import (
     RawMaterial, RecipeTemplate as Recipe, Product, RawMaterialType,
     RecipeItem as RecipeIngredient, ProductionPlan, PlanStatus,
-    ProductionBatch, MaterialBatch, BatchMaterial
+    ProductionBatch, MaterialBatch, BatchMaterial, User, UserRole
 )
 from app.forms import (
     RawMaterialForm, ProductForm, RecipeForm, RecipeIngredientForm,
@@ -1228,4 +1228,33 @@ def page_not_found(e):
 
 @app.errorhandler(500)
 def internal_error(e):
-    return render_template('500.html'), 500 
+    return render_template('500.html'), 500
+
+# Временный маршрут для создания пользователей admin и operator
+@app.route('/create_default_users')
+def create_default_users():
+    created = []
+    # Admin
+    if not User.query.filter_by(username='admin').first():
+        admin = User(
+            username='admin',
+            email='admin@example.com',
+            role=UserRole.ADMIN
+        )
+        admin.set_password('admin123')  # Пароль для admin
+        db.session.add(admin)
+        created.append('admin')
+    # Operator
+    if not User.query.filter_by(username='operator').first():
+        operator = User(
+            username='operator',
+            email='operator@example.com',
+            role=UserRole.OPERATOR
+        )
+        operator.set_password('operator123')  # Пароль для operator
+        db.session.add(operator)
+        created.append('operator')
+    db.session.commit()
+    if created:
+        return f"Created users: {', '.join(created)}"
+    return "Users already exist" 
