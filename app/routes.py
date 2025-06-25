@@ -16,7 +16,7 @@ from app.utils import (
     create_excel_report, style_header_row, adjust_column_width,
     save_excel_report, format_datetime
 )
-from sqlalchemy import func, cast, String
+from sqlalchemy import func, cast, String, text
 from sqlalchemy.orm import joinedload
 from flask_login import login_user, logout_user, login_required, current_user
 from app.decorators import admin_required, operator_required
@@ -1257,4 +1257,18 @@ def create_default_users():
     db.session.commit()
     if created:
         return f"Created users: {', '.join(created)}"
-    return "Users already exist" 
+    return "Users already exist"
+
+# Временный маршрут для исправления ENUM userrole
+@app.route('/fix_enum')
+def fix_enum():
+    try:
+        # Удаляем старый ENUM если он существует
+        db.session.execute(text("DROP TYPE IF EXISTS userrole CASCADE;"))
+        # Создаем новый ENUM с правильными значениями
+        db.session.execute(text("CREATE TYPE userrole AS ENUM ('ADMIN', 'OPERATOR');"))
+        db.session.commit()
+        return "ENUM userrole successfully recreated with ADMIN and OPERATOR values"
+    except Exception as e:
+        db.session.rollback()
+        return f"Error fixing ENUM: {str(e)}" 
