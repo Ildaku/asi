@@ -1277,17 +1277,12 @@ def fix_enum():
 @app.route('/apply_migrations')
 def apply_migrations():
     try:
-        from alembic import command
-        from alembic.config import Config
-        import os
+        from app import db
+        from app.models import User, RawMaterialType, RawMaterial, Product, Recipe, RecipeItem, ProductionPlan, Batch, BatchIngredient
         
-        # Создаем конфигурацию Alembic
-        alembic_cfg = Config("migrations/alembic.ini")
-        alembic_cfg.set_main_option("script_location", "migrations")
+        # Создаем все таблицы
+        db.create_all()
         
-        # Применяем миграции
-        command.upgrade(alembic_cfg, "head")
-        
-        return "Migrations applied successfully"
+        return "All tables created successfully"
     except Exception as e:
-        return f"Error applying migrations: {str(e)}" 
+        return f"Error creating tables: {str(e)}" 
