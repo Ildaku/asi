@@ -1280,9 +1280,18 @@ def apply_migrations():
         from app import db
         from app.models import User, RawMaterialType, RawMaterial, Product, RecipeTemplate, RecipeItem, ProductionPlan, ProductionBatch, BatchMaterial, MaterialBatch
         
-        # Создаем все таблицы
+        # Сначала создаем ENUM userrole
+        db.session.execute(text("DROP TYPE IF EXISTS userrole CASCADE;"))
+        db.session.execute(text("CREATE TYPE userrole AS ENUM ('admin', 'operator');"))
+        db.session.commit()
+        
+        # Удаляем все таблицы
+        db.drop_all()
+        
+        # Создаем все таблицы заново
         db.create_all()
         
-        return "All tables created successfully"
+        return "ENUM created and all tables recreated successfully"
     except Exception as e:
+        db.session.rollback()
         return f"Error creating tables: {str(e)}" 
