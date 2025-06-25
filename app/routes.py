@@ -16,7 +16,7 @@ from app.utils import (
     create_excel_report, style_header_row, adjust_column_width,
     save_excel_report, format_datetime
 )
-from sqlalchemy import func, cast, String, text
+from sqlalchemy import func, cast, String
 from sqlalchemy.orm import joinedload
 from flask_login import login_user, logout_user, login_required, current_user
 from app.decorators import admin_required, operator_required
@@ -1230,68 +1230,12 @@ def page_not_found(e):
 def internal_error(e):
     return render_template('500.html'), 500
 
-# Временный маршрут для создания пользователей admin и operator
-@app.route('/create_default_users')
-def create_default_users():
-    created = []
-    # Admin
-    if not User.query.filter_by(username='admin').first():
-        admin = User(
-            username='admin',
-            email='admin@example.com',
-            role=UserRole.ADMIN
-        )
-        admin.set_password('admin123')  # Пароль для admin
-        db.session.add(admin)
-        created.append('admin')
-    # Operator
-    if not User.query.filter_by(username='operator').first():
-        operator = User(
-            username='operator',
-            email='operator@example.com',
-            role=UserRole.OPERATOR
-        )
-        operator.set_password('operator123')  # Пароль для operator
-        db.session.add(operator)
-        created.append('operator')
-    db.session.commit()
-    if created:
-        return f"Created users: {', '.join(created)}"
-    return "Users already exist"
-
-# Временный маршрут для исправления ENUM userrole
-@app.route('/fix_enum')
-def fix_enum():
-    try:
-        # Удаляем старый ENUM если он существует
-        db.session.execute(text("DROP TYPE IF EXISTS userrole CASCADE;"))
-        # Создаем новый ENUM с правильными значениями
-        db.session.execute(text("CREATE TYPE userrole AS ENUM ('ADMIN', 'OPERATOR');"))
-        db.session.commit()
-        return "ENUM userrole successfully recreated with ADMIN and OPERATOR values"
-    except Exception as e:
-        db.session.rollback()
-        return f"Error fixing ENUM: {str(e)}"
-
-# Временный маршрут для применения миграций
-@app.route('/apply_migrations')
-def apply_migrations():
-    try:
-        from app import db
-        from app.models import User, RawMaterialType, RawMaterial, Product, RecipeTemplate, RecipeItem, ProductionPlan, ProductionBatch, BatchMaterial, MaterialBatch
-        
-        # Сначала создаем ENUM userrole
-        db.session.execute(text("DROP TYPE IF EXISTS userrole CASCADE;"))
-        db.session.execute(text("CREATE TYPE userrole AS ENUM ('admin', 'operator');"))
-        db.session.commit()
-        
-        # Удаляем все таблицы
-        db.drop_all()
-        
-        # Создаем все таблицы заново
-        db.create_all()
-        
-        return "ENUM created and all tables recreated successfully"
-    except Exception as e:
-        db.session.rollback()
-        return f"Error creating tables: {str(e)}" 
+@app.route('/health')
+def health_check():
+    from datetime import datetime
+    return {
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'service': 'Production Planner',
+        'version': '1.0.0'
+    } 
