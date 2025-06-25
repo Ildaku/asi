@@ -1278,7 +1278,7 @@ def fix_enum():
 def apply_migrations():
     try:
         from app import db
-        from app.models import User, RawMaterialType, RawMaterial, Product, Recipe, RecipeItem, ProductionPlan, Batch, BatchIngredient
+        from app.models import User, RawMaterialType, RawMaterial, Product, RecipeTemplate, RecipeItem, ProductionPlan, ProductionBatch, BatchMaterial, MaterialBatch
         
         # Создаем все таблицы
         db.create_all()
