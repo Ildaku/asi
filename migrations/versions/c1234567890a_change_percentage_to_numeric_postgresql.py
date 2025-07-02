@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'change_percentage_to_numeric_postgresql'
+revision = 'c1234567890a'
 down_revision = 'b0dfb14a93c8'
 branch_labels = None
 depends_on = None
