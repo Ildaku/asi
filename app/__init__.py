@@ -3,7 +3,6 @@ from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 import os
-import subprocess
 
 # Создаем и настраиваем приложение Flask
 app = Flask(__name__, instance_relative_config=True)
@@ -37,18 +36,6 @@ login_manager.login_message_category = 'info'
 def load_user(user_id):
     from .models import User
     return User.query.get(int(user_id))
-
-# Применяем миграции при инициализации (только на сервере)
-if DATABASE_URL:
-    with app.app_context():
-        try:
-            print("Applying database migrations...")
-            subprocess.run(['alembic', '-c', 'migrations/alembic.ini', 'upgrade', 'head'], check=True)
-            print("Migrations applied successfully")
-        except subprocess.CalledProcessError as e:
-            print(f"Migration failed: {e}")
-        except FileNotFoundError:
-            print("Alembic not found, skipping migrations")
 
 # Импортируем маршруты и модели в самом конце, чтобы избежать циклических ошибок
 from . import routes, models
