@@ -21,6 +21,7 @@ from sqlalchemy.orm import joinedload
 from flask_login import login_user, logout_user, login_required, current_user
 from app.decorators import admin_required, operator_required
 from flask_migrate import upgrade
+import subprocess
 
 @app.route('/')
 @login_required
@@ -1238,4 +1239,21 @@ def health_check():
         'timestamp': datetime.now().isoformat(),
         'service': 'Production Planner',
         'version': '1.0.0'
-    } 
+    }
+
+@app.route('/apply_migrations')
+@admin_required
+def apply_migrations():
+    """Применяет миграции базы данных"""
+    try:
+        result = subprocess.run(
+            ['alembic', '-c', 'migrations/alembic.ini', 'upgrade', 'head'],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        return f"Миграции применены успешно!<br><pre>{result.stdout}</pre>"
+    except subprocess.CalledProcessError as e:
+        return f"Ошибка при применении миграций:<br><pre>{e.stderr}</pre>"
+    except FileNotFoundError:
+        return "Alembic не найден" 
