@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float, DateTime, Enum as SQLAlchemyEnum
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float, DateTime, Enum as SQLAlchemyEnum, Numeric
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from . import db
@@ -144,7 +144,7 @@ class RecipeItem(db.Model):
     id = Column(Integer, primary_key=True, index=True)
     template_id = Column(Integer, ForeignKey("recipe_templates.id"))
     material_type_id = Column(Integer, ForeignKey("raw_material_types.id"))
-    percentage = Column(Float)
+    percentage = Column(Numeric(6, 3))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     created_by = Column(Integer, ForeignKey("users.id"))

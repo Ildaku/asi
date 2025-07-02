@@ -55,7 +55,7 @@ class RecipeForm(FlaskForm):
 
 class RecipeIngredientForm(FlaskForm):
     material_type_id = SelectField('Вид сырья', coerce=int, validators=[DataRequired()])
-    percentage = FloatField('Процент', validators=[DataRequired(), NumberRange(min=0, max=100)])
+    percentage = DecimalField('Процент', places=3, rounding=None, validators=[DataRequired(), NumberRange(min=0, max=100)])
     submit = SubmitField('Добавить ингредиент')
     save_recipe = SubmitField('Сохранить рецептуру')
 

@@ -6,12 +6,6 @@ import os
 
 # Создаем и настраиваем приложение Flask
 app = Flask(__name__, instance_relative_config=True)
-app.config.from_mapping(
-    SECRET_KEY='your-secret-key-should-be-changed',
-    # Указываем правильный путь к базе данных в папке instance
-    SQLALCHEMY_DATABASE_URI='sqlite:///planner2.db',
-    SQLALCHEMY_TRACK_MODIFICATIONS=False,
-)
 
 # Настройка строки подключения к базе данных
 DATABASE_URL = os.environ.get('DATABASE_URL')
@@ -19,6 +13,11 @@ if DATABASE_URL:
     app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/planner2.db'
+
+app.config.from_mapping(
+    SECRET_KEY='your-secret-key-should-be-changed',
+    SQLALCHEMY_TRACK_MODIFICATIONS=False,
+)
 
 # Создаем объект db и связываем его с приложением
 db = SQLAlchemy(app)
