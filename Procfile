@@ -1,2 +1,2 @@
-release: alembic -c migrations/alembic.ini upgrade head
+postdeploy: alembic -c migrations/alembic.ini upgrade head
 web: gunicorn run:app 
