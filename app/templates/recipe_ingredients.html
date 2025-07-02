@@ -55,6 +55,11 @@
             </div>
         </div>
         <div class="card-body">
+            {% if total_percent < 100 %}
+                <div class="alert alert-info">
+                    Осталось добавить {{ "%.2f"|format(100 - total_percent) }}%
+                </div>
+            {% endif %}
             {% if ingredients %}
             <div class="table-responsive">
                 <table class="table">
