@@ -49,7 +49,7 @@
                 <h5 class="mb-0">Ингредиенты</h5>
                 <div>
                     <span class="badge {% if total_percent == 100 %}bg-success{% elif total_percent > 100 %}bg-danger{% else %}bg-warning{% endif %}">
-                        Всего: {{ "%.2f"|format(total_percent) }}%
+                        Всего: {{ "%.3f"|format(total_percent) }}%
                     </span>
                 </div>
             </div>
@@ -71,7 +71,7 @@
                         {% for ingredient in ingredients %}
                         <tr>
                             <td>{{ ingredient.material_type.name }}</td>
-                            <td>{{ "%.2f"|format(ingredient.percentage) }}%</td>
+                            <td>{{ "%.3f"|format(ingredient.percentage) }}%</td>
                             {% if recipe.status == 'draft' and current_user.is_admin() %}
                             <td>
                                 <form action="{{ url_for('delete_recipe_ingredient', recipe_id=recipe.id, ingredient_id=ingredient.id) }}"

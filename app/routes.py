@@ -240,7 +240,7 @@ def recipe_ingredients(recipe_id):
             if not recipe.recipe_items:
                 flash('Добавьте хотя бы один ингредиент перед сохранением рецептуры.', 'error')
             elif abs(total_percent - 100) > 0.01:  # Учитываем возможную погрешность float
-                flash(f'Сумма процентов должна быть равна 100%. Текущая сумма: {total_percent}%', 'error')
+                flash(f'Сумма процентов должна быть равна 100%. Текущая сумма: {total_percent:.3f}%', 'error')
             else:
                 recipe.status = 'saved'
                 db.session.commit()
@@ -268,9 +268,9 @@ def recipe_ingredients(recipe_id):
                 # Показываем текущую сумму процентов
                 total_percent = sum(item.percentage for item in recipe.recipe_items)
                 if total_percent > 100:
-                    flash(f'Предупреждение: сумма процентов превышает 100% ({total_percent}%)', 'warning')
+                    flash(f'Предупреждение: сумма процентов превышает 100% ({total_percent:.3f}%)', 'warning')
                 elif total_percent < 100:
-                    flash(f'Осталось добавить {100 - total_percent}%', 'info')
+                    flash(f'Осталось добавить {100 - total_percent:.3f}%', 'info')
             
         return redirect(url_for('recipe_ingredients', recipe_id=recipe.id))
         
