@@ -86,7 +86,10 @@
                         </span>
                     </td>
                     <td>
-                        {% set total_produced = plan.batches|sum(attribute='weight') %}
+                        {% set total_produced = 0 %}
+                        {% for batch in plan.batches %}
+                            {% set total_produced = total_produced + batch.weight %}
+                        {% endfor %}
                         {% set progress_percent = (total_produced / plan.quantity * 100) if plan.quantity > 0 else 0 %}
                         <div class="progress" style="height: 20px;">
                             <div class="progress-bar bg-{{ status_colors[plan.status] }}" 
@@ -146,7 +149,12 @@
         <div class="col-md-3">
             <div class="card text-center">
                 <div class="card-body">
-                    {% set total_produced = plans|sum(attribute='batches')|sum(attribute='weight') %}
+                    {% set total_produced = 0 %}
+                    {% for plan in plans %}
+                        {% for batch in plan.batches %}
+                            {% set total_produced = total_produced + batch.weight %}
+                        {% endfor %}
+                    {% endfor %}
                     <h5 class="card-title">{{ "%.2f"|format(total_produced) }}</h5>
                     <p class="card-text">Произведено (кг)</p>
                 </div>
