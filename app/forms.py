@@ -101,7 +101,7 @@ class ProductionPlanForm(FlaskForm):
             recipe = Recipe.query.get(self.template_id.data)
             if recipe:
                 for ingredient in recipe.recipe_items:
-                    needed_quantity = (field.data * ingredient.percentage) / 100
+                    needed_quantity = (field.data * float(ingredient.percentage)) / 100
                     available_quantity = sum(
                         rm.quantity_kg for rm in RawMaterial.query.filter_by(type_id=ingredient.material_type_id).all()
                     )

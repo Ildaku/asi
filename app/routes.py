@@ -377,7 +377,7 @@ def update_plan_status(plan_id):
             # Строгая проверка внесения всех ингредиентов
             for batch in plan.batches:
                 for recipe_item in plan.template.recipe_items:
-                    need_qty = batch.weight * recipe_item.percentage / 100
+                    need_qty = batch.weight * float(recipe_item.percentage) / 100
                     added_qty = sum(
                         bi.quantity for bi in batch.materials
                         if bi.material_batch.material.type_id == recipe_item.material_type_id
@@ -493,7 +493,7 @@ def add_batch_ingredient(plan_id):
             bi.quantity for bi in batch.materials
             if bi.material_batch.material.type_id == info.material_type_id
         ])
-        if (batch.weight * info.percentage / 100) > added_qty:
+        if (batch.weight * float(info.percentage) / 100) > added_qty:
             ingredient_info = info
             break
     
@@ -513,7 +513,7 @@ def add_batch_ingredient(plan_id):
             return redirect(url_for('production_plan_detail', plan_id=plan_id))
         
         # Проверяем количество
-        need_qty = (batch.weight * ingredient_info.percentage / 100) - sum([
+        need_qty = (batch.weight * float(ingredient_info.percentage) / 100) - sum([
             bi.quantity for bi in batch.materials
             if bi.material_batch.material.type_id == ingredient_info.material_type_id
         ])
@@ -575,7 +575,7 @@ def production_plan_detail(plan_id):
     if plan.template:
         for ingredient in plan.template.recipe_items:
             type_id = ingredient.material_type_id
-            needed_qty = (plan.quantity * ingredient.percentage / 100)
+            needed_qty = (plan.quantity * float(ingredient.percentage) / 100)
             available_qty = sum([rm.quantity_kg for rm in RawMaterial.query.filter_by(type_id=type_id).all()])
             
             raw_materials_availability[type_id] = {
@@ -606,7 +606,7 @@ def production_plan_detail(plan_id):
             ingredients_info = []
             for recipe_ingredient in plan.template.recipe_items:
                 type_id = recipe_ingredient.material_type_id
-                need_qty = batch.weight * recipe_ingredient.percentage / 100
+                need_qty = batch.weight * float(recipe_ingredient.percentage) / 100
                 batch_ingredients_query = BatchMaterial.query.filter_by(batch_id=batch.id)
                 batch_ingredients = [
                     bi for bi in batch_ingredients_query.all()
@@ -953,7 +953,7 @@ def raw_material_forecast():
         recipe = plan.template
         
         for ingredient in recipe.recipe_items:
-            needed_kg = (ingredient.percentage / 100) * plan_quantity
+            needed_kg = (float(ingredient.percentage) / 100) * plan_quantity
             forecast[date_str][ingredient.material_type_id] += needed_kg
     
     # Накопительное использование по типам сырья
@@ -1199,7 +1199,7 @@ def export_raw_material_forecast():
         recipe = plan.template
         
         for ingredient in recipe.recipe_items:
-            needed_kg = (ingredient.percentage / 100) * plan_quantity
+            needed_kg = (float(ingredient.percentage) / 100) * plan_quantity
             forecast[date_str][ingredient.material_type_id] += needed_kg
     
     # Добавляем данные прогноза
