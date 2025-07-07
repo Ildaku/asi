@@ -932,47 +932,98 @@ def raw_material_forecast():
     # Получаем все утвержденные планы производства
     approved_plans = ProductionPlan.query.filter_by(status=PlanStatus.APPROVED).order_by(ProductionPlan.created_at).all()
     
-    # Получаем текущие остатки сырья
+    # Получаем все типы сырья
+    raw_material_types = RawMaterialType.query.all()
+    
+    # Текущие остатки по типам сырья
     current_stock = {}
     for material in RawMaterial.query.all():
         if material.type_id not in current_stock:
             current_stock[material.type_id] = 0
         current_stock[material.type_id] += material.quantity_kg
-
-    # Прогноз потребности по дням
-    forecast = {}
-    raw_material_types = RawMaterialType.query.all()
     
+    # Прогноз потребности в сырье по дням
+    forecast = {}
     for plan in approved_plans:
         date_str = plan.created_at.strftime('%Y-%m-%d')
         if date_str not in forecast:
             forecast[date_str] = {t.id: 0 for t in raw_material_types}
-            
-        # Для каждого замеса в плане
+        
         plan_quantity = plan.quantity
         recipe = plan.template
         
-        # Рассчитываем потребность в сырье для каждого типа
         for ingredient in recipe.recipe_items:
             needed_kg = (ingredient.percentage / 100) * plan_quantity
             forecast[date_str][ingredient.material_type_id] += needed_kg
     
-    # Сортируем даты
-    sorted_dates = sorted(forecast.keys())
-    
-    # Рассчитываем накопительный расход и сравниваем с остатками
+    # Накопительное использование по типам сырья
     cumulative_usage = {t.id: 0 for t in raw_material_types}
-    for date in sorted_dates:
-        for type_id in forecast[date]:
-            cumulative_usage[type_id] += forecast[date][type_id]
+    for date_data in forecast.values():
+        for type_id, usage in date_data.items():
+            cumulative_usage[type_id] += usage
     
     return render_template(
         'raw_material_forecast.html',
-        forecast=forecast,
-        sorted_dates=sorted_dates,
         raw_material_types=raw_material_types,
         current_stock=current_stock,
+        forecast=forecast,
         cumulative_usage=cumulative_usage
+    )
+
+@app.route('/reports/production_plans', methods=['GET'])
+@login_required
+def production_plans_report():
+    """Отчёт по планам производства"""
+    # Получаем параметры фильтрации
+    product_id = request.args.get('product_id', type=int)
+    status = request.args.get('status')
+    date_from_str = request.args.get('date_from')
+    date_to_str = request.args.get('date_to')
+
+    query = ProductionPlan.query
+
+    # Применяем фильтры
+    if product_id:
+        query = query.filter(ProductionPlan.product_id == product_id)
+    if status:
+        query = query.filter(ProductionPlan.status == status)
+    
+    if date_from_str:
+        try:
+            date_from = datetime.strptime(date_from_str, '%Y-%m-%d')
+            query = query.filter(ProductionPlan.created_at >= date_from)
+        except ValueError:
+            flash('Неверный формат даты начала периода.', 'error')
+    
+    if date_to_str:
+        try:
+            date_to = datetime.strptime(date_to_str, '%Y-%m-%d')
+            # Включаем весь день до 23:59:59
+            query = query.filter(ProductionPlan.created_at <= date_to + timedelta(days=1, seconds=-1))
+        except ValueError:
+            flash('Неверный формат даты конца периода.', 'error')
+
+    # Сортировка
+    plans = query.order_by(ProductionPlan.created_at.desc()).all()
+
+    # Данные для форм фильтров
+    products = Product.query.order_by(Product.name).all()
+
+    # Цвета для статусов
+    status_colors = {
+        PlanStatus.DRAFT: 'secondary',
+        PlanStatus.APPROVED: 'info',
+        PlanStatus.IN_PROGRESS: 'primary',
+        PlanStatus.COMPLETED: 'success',
+        PlanStatus.CANCELLED: 'danger'
+    }
+
+    return render_template(
+        'production_plans_report.html',
+        plans=plans,
+        products=products,
+        status_colors=status_colors,
+        PlanStatus=PlanStatus
     )
 
 @app.route('/reports/raw_material_usage/export')
@@ -1191,6 +1242,51 @@ def export_raw_material_forecast():
     # Сохраняем и отправляем файл
     output = save_excel_report(wb, output)
     filename = f"raw_material_forecast_{format_datetime(datetime.now())}.xlsx"
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
+@app.route('/reports/production_plans/export')
+@login_required
+def export_production_plans():
+    """Экспорт отчёта по планам производства в Excel"""
+    wb, output = create_excel_report()
+    
+    # Создаем лист для отчета
+    ws = wb.create_sheet("Планы производства")
+    
+    # Заголовки
+    headers = ["Дата создания", "Продукт", "Партия", "Количество (кг)", "Статус", "Прогресс (%)"]
+    ws.append(headers)
+    style_header_row(ws)
+    
+    # Получаем данные
+    plans = ProductionPlan.query.order_by(ProductionPlan.created_at.desc()).all()
+    
+    for plan in plans:
+        # Вычисляем прогресс выполнения
+        total_produced = sum(batch.weight for batch in plan.batches)
+        progress_percent = (total_produced / plan.quantity * 100) if plan.quantity > 0 else 0
+        
+        ws.append([
+            plan.created_at.strftime("%Y-%m-%d"),
+            plan.product.name,
+            plan.batch_number,
+            plan.quantity,
+            plan.status,
+            f"{progress_percent:.1f}"
+        ])
+    
+    # Форматирование
+    adjust_column_width(ws)
+    
+    # Сохраняем и отправляем файл
+    output = save_excel_report(wb, output)
+    filename = f"production_plans_{format_datetime(datetime.now())}.xlsx"
     
     return send_file(
         output,
