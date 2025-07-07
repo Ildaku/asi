@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Добавить ингредиент в замес №{{ batch.batch_number }}</h2>
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+            {{ form.ingredient_type_id.label }}
+            {{ form.ingredient_type_id(class="form-select") }}
+        </div>
+        <div class="mb-3">
+            {{ form.raw_material_id.label }}
+            {{ form.raw_material_id(class="form-select") }}
+        </div>
+        <div class="mb-3">
+            {{ form.quantity.label }}
+            {{ form.quantity(class="form-control") }}
+        </div>
+        <button type="submit" class="btn btn-primary">Добавить</button>
+        <a href="{{ url_for('production_plan_detail', plan_id=batch.plan_id) }}" class="btn btn-secondary">Отмена</a>
+    </form>
+</div>
+{% endblock %} 

@@ -141,11 +141,9 @@ class ProductionBatchForm(FlaskForm):
     submit = SubmitField('Добавить замес')
 
 class BatchIngredientForm(FlaskForm):
-    raw_material_id = SelectField('Сырье', coerce=int, validators=[DataRequired()])
-    quantity = FloatField('Количество (кг)', validators=[
-        DataRequired(),
-        NumberRange(min=0.01, message='Количество должно быть больше 0')
-    ])
+    raw_material_id = SelectField('Партия сырья', coerce=int)
+    quantity = FloatField('Количество (кг)', validators=[DataRequired()])
+    ingredient_type_id = SelectField('Ингредиент', coerce=str)
     submit = SubmitField('Добавить сырье')
 
 class RawMaterialUsageReportForm(FlaskForm):

@@ -486,21 +486,40 @@ def add_batch_ingredient(plan_id):
         flash('Нельзя добавлять ингредиенты в этом статусе', 'error')
         return redirect(url_for('production_plan_detail', plan_id=plan_id))
     
-    # Находим тип сырья для текущего ингредиента
-    ingredient_info = None
+    # Находим все ингредиенты, которые ещё не добавлены полностью
+    available_ingredients = []
     for info in batch.plan.template.recipe_items:
         added_qty = sum([
             bi.quantity for bi in batch.materials
             if bi.material_batch.material.type_id == info.material_type_id
         ])
         if (batch.weight * float(info.percentage) / 100) > added_qty:
-            ingredient_info = info
-            break
-    
-    if not ingredient_info:
+            available_ingredients.append(info)
+
+    if not available_ingredients:
         flash('Все ингредиенты уже добавлены', 'info')
         return redirect(url_for('production_plan_detail', plan_id=plan_id))
-    
+
+    # Если ингредиент не выбран, показываем форму выбора
+    ingredient_type_id = request.form.get('ingredient_type_id')
+    if not ingredient_type_id:
+        # Показываем форму выбора ингредиента
+        form.ingredient_type_id.choices = [
+            (str(info.material_type_id), info.material_type.name) for info in available_ingredients
+        ]
+        return render_template(
+            'add_batch_ingredient.html',
+            form=form,
+            batch=batch,
+            available_ingredients=available_ingredients
+        )
+
+    # Находим выбранный ингредиент
+    ingredient_info = next((info for info in available_ingredients if str(info.material_type_id) == ingredient_type_id), None)
+    if not ingredient_info:
+        flash('Выбран некорректный ингредиент', 'error')
+        return redirect(url_for('production_plan_detail', plan_id=plan_id))
+
     # Получаем доступное сырье для данного типа
     available_materials = RawMaterial.query.filter_by(type_id=ingredient_info.material_type_id).all()
     form.raw_material_id.choices = [(m.id, f"{m.batch_number} ({m.quantity_kg} кг)") for m in available_materials]
