@@ -208,10 +208,9 @@
                                     <td>
                                         {% if info.to_add_qty > 0 %}
                                         <button class="btn btn-sm btn-outline-primary"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#addIngredientModal"
-                                                data-batch-id="{{ batch_info.batch.id }}"
-                                                data-type-id="{{ info.type.id }}">
+                                                data-bs-toggle="tooltip"
+                                                title="Добавить"
+                                                onclick="window.location.href='{{ url_for('add_batch_ingredient', plan_id=plan.id) }}?batch_id={{ batch_info.batch.id }}&ingredient_type_id={{ info.type.id }}'">
                                             Добавить
                                         </button>
                                         {% endif %}

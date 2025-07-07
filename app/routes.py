@@ -500,22 +500,14 @@ def add_batch_ingredient(plan_id):
         flash('Все ингредиенты уже добавлены', 'info')
         return redirect(url_for('production_plan_detail', plan_id=plan_id))
 
-    # Если ингредиент не выбран, показываем форму выбора
-    ingredient_type_id = request.form.get('ingredient_type_id')
+    # ingredient_type_id должен приходить из запроса (кнопки "Добавить" в таблице замеса)
+    ingredient_type_id = request.args.get('ingredient_type_id') or request.form.get('ingredient_type_id')
     if not ingredient_type_id:
-        # Показываем форму выбора ингредиента
-        form.ingredient_type_id.choices = [
-            (str(info.material_type_id), info.material_type.name) for info in available_ingredients
-        ]
-        return render_template(
-            'add_batch_ingredient.html',
-            form=form,
-            batch=batch,
-            available_ingredients=available_ingredients
-        )
+        flash('Не выбран ингредиент для добавления', 'error')
+        return redirect(url_for('production_plan_detail', plan_id=plan_id))
 
-    # Находим выбранный ингредиент
-    ingredient_info = next((info for info in available_ingredients if str(info.material_type_id) == ingredient_type_id), None)
+    # Находим нужный ингредиент
+    ingredient_info = next((info for info in batch.plan.template.recipe_items if str(info.material_type_id) == str(ingredient_type_id)), None)
     if not ingredient_info:
         flash('Выбран некорректный ингредиент', 'error')
         return redirect(url_for('production_plan_detail', plan_id=plan_id))
