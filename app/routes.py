@@ -1260,9 +1260,18 @@ def export_production_plans():
     ws = wb.create_sheet("Планы производства")
     
     # Заголовки
-    headers = ["Дата создания", "Продукт", "Партия", "Количество (кг)", "Статус", "Прогресс (%)"]
+    headers = ["Дата создания", "Продукт", "Партия", "Количество (кг)", "Статус", "Контроль ОКК"]
     ws.append(headers)
     style_header_row(ws)
+    
+    # Сопоставление статусов для вывода на русском
+    status_map = {
+        "черновик": "Черновик",
+        "утверждён": "Утверждён",
+        "в производстве": "В производстве",
+        "завершен": "Завершен",
+        "отменен": "Отменен"
+    }
     
     # Получаем данные
     plans = ProductionPlan.query.order_by(ProductionPlan.created_at.desc()).all()
@@ -1272,12 +1281,19 @@ def export_production_plans():
         total_produced = sum(batch.weight for batch in plan.batches)
         progress_percent = (total_produced / plan.quantity * 100) if plan.quantity > 0 else 0
         
+        # Получаем человекочитаемый статус
+        status_display = getattr(plan.status, "display", None)
+        if callable(status_display):
+            status_display = plan.status.display
+        else:
+            status_display = status_map.get(str(plan.status), str(plan.status))
+        
         ws.append([
             plan.created_at.strftime("%Y-%m-%d"),
             plan.product.name,
             plan.batch_number,
             plan.quantity,
-            plan.status,
+            status_display,
             f"{progress_percent:.1f}"
         ])
     
