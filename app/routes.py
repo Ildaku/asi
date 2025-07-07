@@ -683,12 +683,6 @@ def delete_batch_ingredient(ingredient_id):
         return redirect(url_for('production_plan_detail', plan_id=plan_id))
 
     try:
-        # Возвращаем количество на склад
-        # Находим партию сырья, из которой был взят этот ингредиент
-        material_batch = ingredient.material_batch
-        if material_batch and material_batch.material:
-            material_batch.material.quantity_kg += ingredient.quantity
-        
         # Удаляем запись об использовании ингредиента
         db.session.delete(ingredient)
         db.session.commit()
