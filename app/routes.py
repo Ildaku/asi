@@ -542,10 +542,6 @@ def add_batch_ingredient(plan_id):
             material_batch=material_batch,
             quantity=form.quantity.data
         )
-        
-        # Уменьшаем количество доступного сырья
-        raw_material.quantity_kg -= form.quantity.data
-        
         db.session.add(ingredient)
         db.session.commit()
         
