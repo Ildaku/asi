@@ -1282,9 +1282,10 @@ def export_production_plans():
         progress_percent = (total_produced / plan.quantity * 100) if plan.quantity > 0 else 0
         
         # Получаем человекочитаемый статус
-        status_display = getattr(plan.status, "display", None)
-        if callable(status_display):
+        if hasattr(plan.status, "display"):
             status_display = plan.status.display
+        elif hasattr(plan.status, "value"):
+            status_display = status_map.get(plan.status.value, plan.status.value)
         else:
             status_display = status_map.get(str(plan.status), str(plan.status))
         
