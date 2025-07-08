@@ -468,76 +468,37 @@ def add_batch(plan_id):
     
     return redirect(url_for('production_plan_detail', plan_id=plan_id))
 
-@app.route('/production_plans/<int:plan_id>/add_batch_ingredient', methods=['POST'])
+@app.route('/production_plans/<int:plan_id>/add_batch_ingredient', methods=['GET', 'POST'])
 @operator_required
 def add_batch_ingredient(plan_id):
     form = BatchIngredientForm()
-    
-    # Получаем замес и его тип сырья
-    batch_id = request.form.get('batch_id')
-    if not batch_id:
-        flash('Не указан ID замеса', 'error')
-        return redirect(url_for('production_plan_detail', plan_id=plan_id))
-    
-    batch = ProductionBatch.query.get_or_404(batch_id)
-    
-    # Проверяем статус плана
-    if batch.plan.status not in [PlanStatus.IN_PROGRESS, PlanStatus.APPROVED]:
-        flash('Нельзя добавлять ингредиенты в этом статусе', 'error')
-        return redirect(url_for('production_plan_detail', plan_id=plan_id))
-    
-    # Находим все ингредиенты, которые ещё не добавлены полностью
-    available_ingredients = []
-    for info in batch.plan.template.recipe_items:
-        added_qty = sum([
-            bi.quantity for bi in batch.materials
-            if bi.material_batch.material.type_id == info.material_type_id
-        ])
-        if (batch.weight * float(info.percentage) / 100) > added_qty:
-            available_ingredients.append(info)
-
-    if not available_ingredients:
-        flash('Все ингредиенты уже добавлены', 'info')
-        return redirect(url_for('production_plan_detail', plan_id=plan_id))
-
-    # ingredient_type_id должен приходить из запроса (кнопки "Добавить" в таблице замеса)
+    batch_id = request.args.get('batch_id') or request.form.get('batch_id')
     ingredient_type_id = request.args.get('ingredient_type_id') or request.form.get('ingredient_type_id')
-    if not ingredient_type_id:
-        flash('Не выбран ингредиент для добавления', 'error')
+    if not batch_id or not ingredient_type_id:
+        flash('Не выбран замес или ингредиент для добавления', 'error')
         return redirect(url_for('production_plan_detail', plan_id=plan_id))
-
-    # Находим нужный ингредиент
+    batch = ProductionBatch.query.get_or_404(batch_id)
     ingredient_info = next((info for info in batch.plan.template.recipe_items if str(info.material_type_id) == str(ingredient_type_id)), None)
     if not ingredient_info:
         flash('Выбран некорректный ингредиент', 'error')
         return redirect(url_for('production_plan_detail', plan_id=plan_id))
-
-    # Получаем доступное сырье для данного типа
     available_materials = RawMaterial.query.filter_by(type_id=ingredient_info.material_type_id).all()
     form.raw_material_id.choices = [(m.id, f"{m.batch_number} ({m.quantity_kg} кг)") for m in available_materials]
-    
     if form.validate_on_submit():
-        # Проверяем, что выбранное сырье подходит по типу
         raw_material = RawMaterial.query.get(form.raw_material_id.data)
         if not raw_material or raw_material.type_id != ingredient_info.material_type_id:
             flash('Выбрано неверное сырье', 'error')
             return redirect(url_for('production_plan_detail', plan_id=plan_id))
-        
-        # Проверяем количество
         need_qty = (batch.weight * float(ingredient_info.percentage) / 100) - sum([
             bi.quantity for bi in batch.materials
             if bi.material_batch.material.type_id == ingredient_info.material_type_id
         ])
-        
         if form.quantity.data > need_qty:
             flash(f'Нельзя добавить больше чем нужно ({need_qty:.2f} кг)', 'error')
             return redirect(url_for('production_plan_detail', plan_id=plan_id))
-        
         if form.quantity.data > raw_material.quantity_kg:
             flash(f'Недостаточно сырья (доступно {raw_material.quantity_kg:.2f} кг)', 'error')
             return redirect(url_for('production_plan_detail', plan_id=plan_id))
-        
-        # Создаем партию материала
         material_batch = MaterialBatch(
             material=raw_material,
             batch_number=raw_material.batch_number,
@@ -545,9 +506,7 @@ def add_batch_ingredient(plan_id):
             remaining_quantity=form.quantity.data
         )
         db.session.add(material_batch)
-        db.session.flush()  # Получаем ID созданной партии
-        
-        # Добавляем ингредиент
+        db.session.flush()
         ingredient = BatchMaterial(
             batch=batch,
             material_batch=material_batch,
@@ -555,11 +514,9 @@ def add_batch_ingredient(plan_id):
         )
         db.session.add(ingredient)
         db.session.commit()
-        
         flash('Ингредиент добавлен!', 'success')
         return redirect(url_for('production_plan_detail', plan_id=plan_id))
-    
-    return redirect(url_for('production_plan_detail', plan_id=plan_id))
+    return render_template('add_batch_ingredient.html', form=form, batch=batch)
 
 @app.route('/production_plans/<int:plan_id>')
 @login_required
