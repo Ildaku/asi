@@ -1233,7 +1233,7 @@ def export_production_plans():
     ws = wb.create_sheet("Планы производства")
     
     # Заголовки
-    headers = ["Дата создания", "Продукт", "Партия", "Количество (кг)", "Статус", "Контроль ОКК"]
+    headers = ["Дата внесения в план", "Продукт", "Партия", "Количество (кг)", "Статус", "Номер недели", "Контроль ОКК"]
     ws.append(headers)
     style_header_row(ws)
     
@@ -1262,12 +1262,16 @@ def export_production_plans():
         else:
             status_display = status_map.get(str(plan.status), str(plan.status))
         
+        # Вычисляем номер недели
+        week_number = plan.created_at.isocalendar()[1]
+        
         ws.append([
             plan.created_at.strftime("%Y-%m-%d"),
             plan.product.name,
             plan.batch_number,
             plan.quantity,
             status_display,
+            week_number,
             f"{progress_percent:.1f}"
         ])
     
