@@ -208,9 +208,10 @@
                                     <td>
                                         {% if info.to_add_qty > 0 %}
                                         <button class="btn btn-sm btn-outline-primary"
-                                                data-bs-toggle="tooltip"
-                                                title="Добавить"
-                                                onclick="window.location.href='{{ url_for('add_batch_ingredient', plan_id=plan.id) }}?batch_id={{ batch_info.batch.id }}&ingredient_type_id={{ info.type.id }}'">
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#addIngredientModal"
+                                                data-batch-id="{{ batch_info.batch.id }}"
+                                                data-type-id="{{ info.type.id }}">
                                             Добавить
                                         </button>
                                         {% endif %}
@@ -272,9 +273,10 @@
                 <div class="modal-body">
                     {{ batch_ingredient_form.csrf_token }}
                     <input type="hidden" name="batch_id" id="ingredientBatchId">
+                    <input type="hidden" name="ingredient_type_id" id="ingredientTypeId">
                     <div class="mb-3">
                         {{ batch_ingredient_form.raw_material_id.label }}
-                        {{ batch_ingredient_form.raw_material_id(class="form-select") }}
+                        {{ batch_ingredient_form.raw_material_id(class="form-select", id="raw_material_id") }}
                     </div>
                     <div class="mb-3">
                         {{ batch_ingredient_form.quantity.label }}
@@ -302,21 +304,17 @@ document.addEventListener('DOMContentLoaded', function() {
             var batchId = button.getAttribute('data-batch-id');
             var typeId = button.getAttribute('data-type-id');
             document.getElementById('ingredientBatchId').value = batchId;
-            
+            document.getElementById('ingredientTypeId').value = typeId;
             // Загружаем доступное сырье
             fetch('/raw_materials/available/' + typeId)
                 .then(response => response.json())
                 .then(data => {
                     var select = document.getElementById('raw_material_id');
-                    select.innerHTML = ''; // Очищаем список
-                    
-                    // Добавляем пустой элемент
+                    select.innerHTML = '';
                     var emptyOption = document.createElement('option');
                     emptyOption.value = '';
                     emptyOption.text = 'Выберите сырье';
                     select.appendChild(emptyOption);
-                    
-                    // Добавляем доступное сырье
                     data.forEach(function(material) {
                         var option = document.createElement('option');
                         option.value = material.id;
