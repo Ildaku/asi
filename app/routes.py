@@ -389,6 +389,21 @@ def update_plan_status(plan_id):
                         )
                         return redirect(url_for('production_plan_detail', plan_id=plan.id))
         
+        # Списание сырья при завершении плана
+        if old_status != PlanStatus.COMPLETED and new_status == PlanStatus.COMPLETED:
+            try:
+                for batch in plan.batches:
+                    for batch_ingredient in batch.materials:
+                        raw_material = batch_ingredient.material_batch.material
+                        if raw_material:
+                            raw_material.quantity_kg = max(0, raw_material.quantity_kg - batch_ingredient.quantity)
+                db.session.commit()
+                flash('Сырьё списано при завершении плана', 'success')
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Ошибка при списании сырья: {str(e)}', 'error')
+                return redirect(url_for('production_plan_detail', plan_id=plan.id))
+        
         # Обработка старого формата статуса (без ё)
         old_status_normalized = old_status.replace("утвержден", "утверждён")
         
