@@ -1233,7 +1233,7 @@ def export_production_plans():
     ws = wb.create_sheet("Планы производства")
     
     # Заголовки
-    headers = ["Дата внесения в план", "Продукт", "Партия", "Количество (кг)", "Статус", "Номер недели", "Контроль ОКК"]
+    headers = ["Дата внесения в план", "Продукт", "Партия", "Количество (кг)", "Статус", "Номер недели", "Отслеживание", "Контроль ОКК"]
     ws.append(headers)
     style_header_row(ws)
     
@@ -1272,6 +1272,7 @@ def export_production_plans():
             plan.quantity,
             status_display,
             week_number,
+            "",  # Пустая ячейка для "Отслеживание"
             f"{progress_percent:.1f}"
         ])
     
