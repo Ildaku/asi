@@ -1326,7 +1326,10 @@ def export_used_materials(plan_id):
     output = BytesIO()
     wb.save(output)
     output.seek(0)
-    filename = f"used_materials_plan_{plan_id}.xlsx"
+    # Получаем имя продукта и номер партии плана
+    product_name = plan.product.name.replace(' ', '_')
+    batch_number = plan.batch_number
+    filename = f"{product_name}_{batch_number}.xlsx"
     return send_file(
         output,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
