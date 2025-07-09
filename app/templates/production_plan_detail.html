@@ -19,6 +19,11 @@
         </div>
         <div class="col-md-4 text-end">
             <a href="{{ url_for('production_plans') }}" class="btn btn-outline-secondary">← К списку планов</a>
+            {% if plan.status == PlanStatus.COMPLETED %}
+            <a href="{{ url_for('export_used_materials', plan_id=plan.id) }}" class="btn btn-success ms-2">
+                Выгрузить отчёт по использованному сырью
+            </a>
+            {% endif %}
         </div>
     </div>
 

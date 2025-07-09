@@ -22,6 +22,8 @@ from flask_login import login_user, logout_user, login_required, current_user
 from app.decorators import admin_required, operator_required
 from flask_migrate import upgrade
 import subprocess
+from openpyxl import Workbook
+from io import BytesIO
 
 @app.route('/')
 @login_required
@@ -1283,6 +1285,48 @@ def export_production_plans():
     output = save_excel_report(wb, output)
     filename = f"production_plans_{format_datetime(datetime.now())}.xlsx"
     
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
+@app.route('/production_plans/<int:plan_id>/export_used_materials')
+@login_required
+def export_used_materials(plan_id):
+    """Экспорт отчёта по использованному сырью для завершённого плана"""
+    plan = ProductionPlan.query.get_or_404(plan_id)
+    if plan.status != PlanStatus.COMPLETED:
+        flash('Отчёт доступен только для завершённых планов!', 'error')
+        return redirect(url_for('production_plan_detail', plan_id=plan_id))
+
+    # Сбор данных: (type_name, batch_number) -> total_quantity
+    usage = {}
+    for batch in plan.batches:
+        for bm in batch.materials:
+            type_name = bm.material_batch.material.type.name
+            batch_number = bm.material_batch.material.batch_number
+            key = (type_name, batch_number)
+            usage.setdefault(key, 0)
+            usage[key] += bm.quantity
+
+    # Формируем Excel
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Использованное сырьё"
+    ws.append(["Вид сырья", "Партия сырья", "Количество (кг)"])
+    for (type_name, batch_number), qty in usage.items():
+        ws.append([type_name, batch_number, round(qty, 3)])
+    # Форматирование ширины
+    for col in ws.columns:
+        max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col)
+        ws.column_dimensions[col[0].column_letter].width = max_length + 2
+    # Сохраняем в память
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    filename = f"used_materials_plan_{plan_id}.xlsx"
     return send_file(
         output,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
