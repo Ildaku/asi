@@ -25,76 +25,140 @@
     {% endif %}
 </div>
 
-<!-- Таблица сырья -->
-<div class="table-responsive">
-    <table class="table table-striped table-hover datatable">
+<!-- Вкладки для сырья -->
+<ul class="nav nav-tabs mb-3" id="rawMaterialTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="available-tab" data-bs-toggle="tab" data-bs-target="#available" type="button" role="tab" aria-controls="available" aria-selected="true">Доступное сырьё</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="usedup-tab" data-bs-toggle="tab" data-bs-target="#usedup" type="button" role="tab" aria-controls="usedup" aria-selected="false">Выработанное сырьё</button>
+  </li>
+</ul>
+<div class="tab-content" id="rawMaterialTabsContent">
+  <div class="tab-pane fade show active" id="available" role="tabpanel" aria-labelledby="available-tab">
+    <!-- Таблица доступного сырья -->
+    <div class="table-responsive">
+      <table class="table table-striped table-hover datatable">
         <thead>
-            <tr>
-                <th>Дата поступления</th>
-                <th>Вид сырья</th>
-                <th>Партия</th>
-                <th>Количество (кг)</th>
-                <th>Годен до</th>
-                <th>Действия</th>
-            </tr>
+          <tr>
+            <th>Дата поступления</th>
+            <th>Вид сырья</th>
+            <th>Партия</th>
+            <th>Количество (кг)</th>
+            <th>Годен до</th>
+            <th>Действия</th>
+          </tr>
         </thead>
         <tbody>
-            {% for material in materials %}
-            <tr>
-                <td>{{ material.date_received.strftime('%d.%m.%Y') if material.date_received else 'N/A' }}</td>
-                <td>{{ material.type.name if material.type else 'N/A' }}</td>
-                <td>{{ material.batch_number or 'N/A' }}</td>
-                <td>{{ "%.2f"|format(material.quantity_kg) if material.quantity_kg is not none else '0.00' }} кг</td>
-                <td>
-                    {% if material.expiration_date %}
-                        {% if material.days_until_expiry is not none %}
-                            {% if material.days_until_expiry < 0 %}
-                                <span class="badge bg-danger" data-bs-toggle="tooltip" title="Просрочено">
-                                    {{ material.expiration_date.strftime('%d.%m.%Y') }}
-                                </span>
-                            {% elif material.days_until_expiry <= 180 %}
-                                <span class="badge bg-warning" data-bs-toggle="tooltip" title="Истекает через {{ material.days_until_expiry }} дней">
-                                    {{ material.expiration_date.strftime('%d.%m.%Y') }}
-                                </span>
-                            {% else %}
-                                <span class="badge bg-success">
-                                    {{ material.expiration_date.strftime('%d.%m.%Y') }}
-                                </span>
-                            {% endif %}
-                        {% else %}
-                            <span class="badge bg-success">
-                                {{ material.expiration_date.strftime('%d.%m.%Y') }}
-                            </span>
-                        {% endif %}
-                    {% else %}
-                        <span class="text-muted">Не указан</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if current_user.is_admin() %}
-                    <div class="btn-group">
-                        <a href="{{ url_for('edit_raw_material', id=material.id) }}" 
-                           class="btn btn-sm btn-outline-primary"
-                           data-bs-toggle="tooltip"
-                           title="Корректировать партию">
-                            <i class="fas fa-edit"></i>
-                        </a>
-                        <button type="button" 
-                                class="btn btn-sm btn-outline-danger"
-                                data-bs-toggle="modal"
-                                data-bs-target="#deleteMaterialModal{{ material.id }}"
-                                title="Удалить партию">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                    {% else %}
-                    <span class="text-muted">Только просмотр</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
+          {% for material in materials %}
+          <tr>
+            <td>{{ material.date_received.strftime('%d.%m.%Y') if material.date_received else 'N/A' }}</td>
+            <td>{{ material.type.name if material.type else 'N/A' }}</td>
+            <td>{{ material.batch_number or 'N/A' }}</td>
+            <td>{{ "%.2f"|format(material.quantity_kg) if material.quantity_kg is not none else '0.00' }} кг</td>
+            <td>
+              {% if material.expiration_date %}
+                {% if material.days_until_expiry is not none %}
+                  {% if material.days_until_expiry < 0 %}
+                    <span class="badge bg-danger" data-bs-toggle="tooltip" title="Просрочено">
+                      {{ material.expiration_date.strftime('%d.%m.%Y') }}
+                    </span>
+                  {% elif material.days_until_expiry <= 180 %}
+                    <span class="badge bg-warning" data-bs-toggle="tooltip" title="Истекает через {{ material.days_until_expiry }} дней">
+                      {{ material.expiration_date.strftime('%d.%m.%Y') }}
+                    </span>
+                  {% else %}
+                    <span class="badge bg-success">
+                      {{ material.expiration_date.strftime('%d.%m.%Y') }}
+                    </span>
+                  {% endif %}
+                {% else %}
+                  <span class="badge bg-success">
+                    {{ material.expiration_date.strftime('%d.%m.%Y') }}
+                  </span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">Не указан</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if current_user.is_admin() %}
+              <div class="btn-group">
+                <a href="{{ url_for('edit_raw_material', id=material.id) }}" 
+                   class="btn btn-sm btn-outline-primary"
+                   data-bs-toggle="tooltip"
+                   title="Корректировать партию">
+                  <i class="fas fa-edit"></i>
+                </a>
+                <button type="button" 
+                        class="btn btn-sm btn-outline-danger"
+                        data-bs-toggle="modal"
+                        data-bs-target="#deleteMaterialModal{{ material.id }}"
+                        title="Удалить партию">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+              {% else %}
+              <span class="text-muted">Только просмотр</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
         </tbody>
-    </table>
+      </table>
+    </div>
+  </div>
+  <div class="tab-pane fade" id="usedup" role="tabpanel" aria-labelledby="usedup-tab">
+    <!-- Таблица выработанного сырья -->
+    <div class="table-responsive">
+      <table class="table table-striped table-hover">
+        <thead>
+          <tr>
+            <th>Дата поступления</th>
+            <th>Вид сырья</th>
+            <th>Партия</th>
+            <th>Количество (кг)</th>
+            <th>Годен до</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for material in used_up_materials %}
+          <tr>
+            <td>{{ material.date_received.strftime('%d.%m.%Y') if material.date_received else 'N/A' }}</td>
+            <td>{{ material.type.name if material.type else 'N/A' }}</td>
+            <td>{{ material.batch_number or 'N/A' }}</td>
+            <td>0.00 кг</td>
+            <td>
+              {% if material.expiration_date %}
+                {% if material.days_until_expiry is not none %}
+                  {% if material.days_until_expiry < 0 %}
+                    <span class="badge bg-danger" data-bs-toggle="tooltip" title="Просрочено">
+                      {{ material.expiration_date.strftime('%d.%m.%Y') }}
+                    </span>
+                  {% elif material.days_until_expiry <= 180 %}
+                    <span class="badge bg-warning" data-bs-toggle="tooltip" title="Истекает через {{ material.days_until_expiry }} дней">
+                      {{ material.expiration_date.strftime('%d.%m.%Y') }}
+                    </span>
+                  {% else %}
+                    <span class="badge bg-success">
+                      {{ material.expiration_date.strftime('%d.%m.%Y') }}
+                    </span>
+                  {% endif %}
+                {% else %}
+                  <span class="badge bg-success">
+                    {{ material.expiration_date.strftime('%d.%m.%Y') }}
+                  </span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">Не указан</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <!-- Связанные данные -->

@@ -77,7 +77,10 @@ def raw_materials():
         db.session.commit()
         flash('Партия сырья добавлена!', 'success')
         return redirect(url_for('raw_materials'))
-    materials = RawMaterial.query.order_by(RawMaterial.created_at.desc()).all()
+    # Доступное сырьё
+    materials = RawMaterial.query.filter(RawMaterial.quantity_kg > 0).order_by(RawMaterial.created_at.desc()).all()
+    # Выработанное сырьё
+    used_up_materials = RawMaterial.query.filter(RawMaterial.quantity_kg == 0).order_by(RawMaterial.created_at.desc()).all()
     
     # Добавляем информацию о днях до истечения срока годности
     today = datetime.now().date()
@@ -88,8 +91,15 @@ def raw_materials():
             material.days_until_expiry = days_until_expiry
         else:
             material.days_until_expiry = None
+    for material in used_up_materials:
+        if material.expiration_date:
+            expiration_date = material.expiration_date.date()
+            days_until_expiry = (expiration_date - today).days
+            material.days_until_expiry = days_until_expiry
+        else:
+            material.days_until_expiry = None
     
-    return render_template('raw_materials.html', form=form, materials=materials)
+    return render_template('raw_materials.html', form=form, materials=materials, used_up_materials=used_up_materials)
 
 @app.route('/raw_materials/edit/<int:id>', methods=['GET', 'POST'])
 @admin_required
