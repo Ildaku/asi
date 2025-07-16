@@ -77,7 +77,7 @@ class ProductionPlanForm(FlaskForm):
     ])
     quantity = FloatField('Количество (кг)', validators=[
         DataRequired(),
-        NumberRange(min=0.01, max=10000, message='Количество должно быть от 0.01 до 10000 кг')
+        NumberRange(min=0.01, message='Количество должно быть больше 0')
     ])
     date = DateField('Дата', validators=[Optional()])
     notes = TextAreaField('Примечания', validators=[Optional(), Length(max=1000)])
