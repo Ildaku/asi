@@ -27,12 +27,16 @@ class RawMaterialForm(FlaskForm):
             raise ValidationError('Количество должно быть положительным числом.')
 
     def validate_batch_number(self, field):
-        if self.type_id.data:
-            query = RawMaterial.query.filter_by(type_id=self.type_id.data, batch_number=field.data)
+        if self.type_id.data and self.date_received.data:
+            query = RawMaterial.query.filter_by(
+                type_id=self.type_id.data,
+                batch_number=field.data,
+                date_received=self.date_received.data
+            )
             if self.original_material:
                 query = query.filter(RawMaterial.id != self.original_material.id)
             if query.first():
-                raise ValidationError('Партия с таким номером уже существует для выбранного вида сырья.')
+                raise ValidationError('Партия с таким номером, видом сырья и датой поступления уже существует.')
 
 class ProductForm(FlaskForm):
     name = StringField('Название продукта', validators=[DataRequired()])

@@ -119,6 +119,7 @@
             <th>Партия</th>
             <th>Количество (кг)</th>
             <th>Годен до</th>
+            <th>Действия</th>
           </tr>
         </thead>
         <tbody>
@@ -151,6 +152,21 @@
                 {% endif %}
               {% else %}
                 <span class="text-muted">Не указан</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if current_user.is_admin() %}
+              <div class="btn-group">
+                <button type="button" 
+                        class="btn btn-sm btn-outline-danger"
+                        data-bs-toggle="modal"
+                        data-bs-target="#deleteMaterialModalUsed{{ material.id }}"
+                        title="Удалить партию">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+              {% else %}
+              <span class="text-muted">Только просмотр</span>
               {% endif %}
             </td>
           </tr>
@@ -236,6 +252,34 @@
                 <div class="alert alert-warning">
                     <i class="fas fa-exclamation-triangle"></i>
                     Внимание! Это сырье уже используется в замесах. Удаление может привести к ошибкам в учете.
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <form method="POST" action="{{ url_for('delete_raw_material', id=material.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-danger">Удалить</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+<!-- Модальные окна удаления для выработанного сырья -->
+{% for material in used_up_materials %}
+<div class="modal fade" id="deleteMaterialModalUsed{{ material.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Подтверждение удаления</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы действительно хотите удалить партию сырья {{ material.type.name }} №{{ material.batch_number }}?</p>
+                {% if material.get_usage() > 0 %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Внимание! Это сырье уже использовалось в замесах. Удаление может привести к ошибкам в учете.
                 </div>
                 {% endif %}
             </div>
