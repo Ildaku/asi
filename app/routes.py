@@ -476,10 +476,54 @@ def add_batch(plan_id):
             weight=form.quantity.data
         )
         db.session.add(batch)
+        db.session.flush()  # Получаем ID замеса
+        
+        # Автоматически добавляем все ингредиенты из рецептуры
+        added_ingredients = []
+        missing_ingredients = []
+        
+        for recipe_item in plan.template.recipe_items:
+            needed_qty = batch.weight * float(recipe_item.percentage) / 100
+            
+            # Находим подходящую партию сырья (с самым ранним сроком годности)
+            raw_material = RawMaterial.query.filter_by(
+                type_id=recipe_item.material_type_id
+            ).filter(
+                RawMaterial.quantity_kg >= needed_qty
+            ).order_by(
+                RawMaterial.expiration_date.asc().nullslast()
+            ).first()
+            
+            if raw_material:
+                # Создаём MaterialBatch и BatchMaterial
+                material_batch = MaterialBatch(
+                    material=raw_material,
+                    batch_number=raw_material.batch_number,
+                    quantity=needed_qty,
+                    remaining_quantity=needed_qty
+                )
+                db.session.add(material_batch)
+                db.session.flush()
+                
+                ingredient = BatchMaterial(
+                    batch=batch,
+                    material_batch=material_batch,
+                    quantity=needed_qty
+                )
+                db.session.add(ingredient)
+                added_ingredients.append(f"{recipe_item.material_type.name} ({needed_qty:.2f} кг)")
+            else:
+                missing_ingredients.append(f"{recipe_item.material_type.name} (нужно {needed_qty:.2f} кг)")
         
         # Добавляем запись в примечания
         timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
         batch_note = f"[{timestamp}] Добавлен замес №{batch.batch_number} ({batch.weight} кг)"
+        
+        if added_ingredients:
+            batch_note += f"\nАвтоматически добавлены ингредиенты: {', '.join(added_ingredients)}"
+        
+        if missing_ingredients:
+            batch_note += f"\nНедостаточно сырья: {', '.join(missing_ingredients)}"
         
         if plan.notes:
             plan.notes = batch_note + "\n\n" + plan.notes
@@ -487,7 +531,11 @@ def add_batch(plan_id):
             plan.notes = batch_note
             
         db.session.commit()
-        flash('Замес добавлен', 'success')
+        
+        if missing_ingredients:
+            flash(f'Замес добавлен. Автоматически добавлены ингредиенты: {", ".join(added_ingredients)}. Недостаточно сырья: {", ".join(missing_ingredients)}', 'warning')
+        else:
+            flash(f'Замес добавлен с автоматическим заполнением ингредиентов: {", ".join(added_ingredients)}', 'success')
     else:
         for field, errors in form.errors.items():
             for error in errors:
