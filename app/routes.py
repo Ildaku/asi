@@ -476,8 +476,9 @@ def get_available_materials_for_batch(needed_qty, material_type_id):
         if remaining_qty <= 0:
             break
             
-        # Используем реальный остаток с учётом уже использованных количеств
-        available_qty = get_actual_available_quantity(material)
+        # ВРЕМЕННО: используем простое количество без учёта использованного
+        # available_qty = get_actual_available_quantity(material)
+        available_qty = material.quantity_kg
         qty_to_use = min(available_qty, remaining_qty)
         
         if qty_to_use > 0:
