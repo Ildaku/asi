@@ -443,6 +443,21 @@ def update_plan_status(plan_id):
     
     return redirect(url_for('production_plan_detail', plan_id=plan.id))
 
+def get_actual_available_quantity(raw_material):
+    """
+    Вычисляет реальный остаток сырья с учётом уже использованных количеств в замесах.
+    """
+    # Получаем сумму всех использованных количеств этого сырья в замесах
+    used_quantity = db.session.query(db.func.sum(BatchMaterial.quantity)).join(
+        MaterialBatch, BatchMaterial.material_batch_id == MaterialBatch.id
+    ).filter(
+        MaterialBatch.material_id == raw_material.id
+    ).scalar() or 0
+    
+    # Реальный остаток = общее количество - использованное
+    actual_available = raw_material.quantity_kg - used_quantity
+    return max(0, actual_available)  # Не может быть отрицательным
+
 def get_available_materials_for_batch(needed_qty, material_type_id):
     """
     Получает список партий сырья с учётом остатков и срока годности.
@@ -461,7 +476,8 @@ def get_available_materials_for_batch(needed_qty, material_type_id):
         if remaining_qty <= 0:
             break
             
-        available_qty = material.quantity_kg
+        # Используем реальный остаток с учётом уже использованных количеств
+        available_qty = get_actual_available_quantity(material)
         qty_to_use = min(available_qty, remaining_qty)
         
         if qty_to_use > 0:
