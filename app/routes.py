@@ -448,10 +448,16 @@ def get_actual_available_quantity(raw_material):
     Вычисляет реальный остаток сырья с учётом уже использованных количеств в замесах.
     """
     # Получаем сумму всех использованных количеств этого сырья в замесах
+    # НО только для незавершённых планов (где сырьё ещё не списано)
     used_quantity = db.session.query(db.func.sum(BatchMaterial.quantity)).join(
         MaterialBatch, BatchMaterial.material_batch_id == MaterialBatch.id
+    ).join(
+        ProductionBatch, BatchMaterial.batch_id == ProductionBatch.id
+    ).join(
+        ProductionPlan, ProductionBatch.plan_id == ProductionPlan.id
     ).filter(
-        MaterialBatch.material_id == raw_material.id
+        MaterialBatch.material_id == raw_material.id,
+        ProductionPlan.status != 'completed'  # Не учитываем завершённые планы
     ).scalar() or 0
     
     # Реальный остаток = общее количество - использованное
@@ -476,9 +482,8 @@ def get_available_materials_for_batch(needed_qty, material_type_id):
         if remaining_qty <= 0:
             break
             
-        # ВРЕМЕННО: используем простое количество без учёта использованного
-        # available_qty = get_actual_available_quantity(material)
-        available_qty = material.quantity_kg
+        # Используем реальный остаток с учётом уже использованных количеств
+        available_qty = get_actual_available_quantity(material)
         qty_to_use = min(available_qty, remaining_qty)
         
         if qty_to_use > 0:
