@@ -137,9 +137,14 @@
                 <button class="btn btn-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#addBatchModal">
                     + Добавить замес
                 </button>
-                <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addMultipleBatchesModal">
+                <button class="btn btn-success btn-sm me-2" data-bs-toggle="modal" data-bs-target="#addMultipleBatchesModal">
                     + Добавить несколько замесов
                 </button>
+                {% if batches_info %}
+                <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteAllBatchesModal">
+                    🗑️ Удалить все замесы
+                </button>
+                {% endif %}
             </div>
             {% endif %}
         </div>
@@ -336,6 +341,36 @@
                     <button type="submit" class="btn btn-success">Создать замесы</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно подтверждения удаления всех замесов -->
+<div class="modal fade" id="deleteAllBatchesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger">Удалить все замесы</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <strong>Внимание!</strong> Вы собираетесь удалить все замесы из плана.
+                </div>
+                <p>Это действие:</p>
+                <ul>
+                    <li>Удалит все созданные замесы</li>
+                    <li>Удалит все добавленные ингредиенты</li>
+                    <li>Нельзя будет отменить</li>
+                </ul>
+                <p class="mb-0"><strong>Количество замесов для удаления: {{ batches_info|length if batches_info else 0 }}</strong></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <form method="POST" action="{{ url_for('delete_all_batches', plan_id=plan.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Удалить все замесы</button>
+                </form>
+            </div>
         </div>
     </div>
 </div>

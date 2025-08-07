@@ -581,7 +581,7 @@ def add_batch(plan_id):
         batch_note = f"[{timestamp}] Добавлен замес №{batch.batch_number} ({batch.weight} кг)"
         
         if added_ingredients:
-            batch_note += f"\nАвтоматически добавлены ингредиенты: {', '.join(added_ingredients)}"
+            batch_note += f"\nАвтоматически добавлены ингредиенты"
         
         if missing_ingredients:
             batch_note += f"\nНедостаточно сырья: {', '.join(missing_ingredients)}"
@@ -594,9 +594,9 @@ def add_batch(plan_id):
         db.session.commit()
         
         if missing_ingredients:
-            flash(f'Замес добавлен. Автоматически добавлены ингредиенты: {", ".join(added_ingredients)}. Недостаточно сырья: {", ".join(missing_ingredients)}', 'warning')
+            flash(f'Замес добавлен. Недостаточно сырья: {", ".join(missing_ingredients)}', 'warning')
         else:
-            flash(f'Замес добавлен с автоматическим заполнением ингредиентов: {", ".join(added_ingredients)}', 'success')
+            flash('Замес добавлен с автоматическим заполнением ингредиентов', 'success')
     else:
         for field, errors in form.errors.items():
             for error in errors:
@@ -1567,16 +1567,56 @@ def add_multiple_batches(plan_id):
         db.session.commit()
         
         if created_batches:
-            flash(f'Успешно создано {len(created_batches)} замесов: {"; ".join(created_batches)}', 'success')
+            flash(f'Успешно создано {len(created_batches)} замесов', 'success')
         
         if failed_batches:
-            flash(f'Не удалось создать замесы: {"; ".join(failed_batches)}', 'warning')
+            flash(f'Не удалось создать {len(failed_batches)} замесов из-за недостатка сырья', 'warning')
             
     except ValueError:
         flash('Некорректные данные в форме', 'error')
     except Exception as e:
         db.session.rollback()
         flash(f'Ошибка при создании замесов: {str(e)}', 'error')
+    
+    return redirect(url_for('production_plan_detail', plan_id=plan_id))
+
+@app.route('/production_plans/<int:plan_id>/delete_all_batches', methods=['POST'])
+@operator_required
+def delete_all_batches(plan_id):
+    plan = ProductionPlan.query.get_or_404(plan_id)
+    
+    # Проверяем, что план не завершён
+    if plan.status == PlanStatus.COMPLETED:
+        flash('Нельзя удалять замесы из завершённого плана', 'error')
+        return redirect(url_for('production_plan_detail', plan_id=plan_id))
+    
+    # Подсчитываем количество удаляемых замесов
+    num_batches = len(plan.batches)
+    
+    if num_batches == 0:
+        flash('В плане нет замесов для удаления', 'info')
+        return redirect(url_for('production_plan_detail', plan_id=plan_id))
+    
+    try:
+        # Удаляем все замесы (cascade="all, delete-orphan" в модели автоматически удалит связанные записи)
+        for batch in plan.batches:
+            db.session.delete(batch)
+        
+        # Добавляем запись в примечания
+        timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
+        batch_note = f"[{timestamp}] Удалено {num_batches} замесов"
+        
+        if plan.notes:
+            plan.notes = batch_note + "\n\n" + plan.notes
+        else:
+            plan.notes = batch_note
+            
+        db.session.commit()
+        flash(f'Удалено {num_batches} замесов', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ошибка при удалении замесов: {str(e)}', 'error')
     
     return redirect(url_for('production_plan_detail', plan_id=plan_id))
 
