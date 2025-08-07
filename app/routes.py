@@ -443,6 +443,36 @@ def update_plan_status(plan_id):
     
     return redirect(url_for('production_plan_detail', plan_id=plan.id))
 
+def get_available_materials_for_batch(needed_qty, material_type_id):
+    """
+    Получает список партий сырья с учётом остатков и срока годности.
+    Возвращает список партий с количеством для использования и оставшуюся потребность.
+    """
+    materials = RawMaterial.query.filter_by(type_id=material_type_id).filter(
+        RawMaterial.quantity_kg > 0
+    ).order_by(
+        RawMaterial.expiration_date.asc().nullslast()
+    ).all()
+    
+    result = []
+    remaining_qty = needed_qty
+    
+    for material in materials:
+        if remaining_qty <= 0:
+            break
+            
+        available_qty = material.quantity_kg
+        qty_to_use = min(available_qty, remaining_qty)
+        
+        if qty_to_use > 0:
+            result.append({
+                'material': material,
+                'quantity': qty_to_use
+            })
+            remaining_qty -= qty_to_use
+    
+    return result, remaining_qty
+
 @app.route('/production_plans/<int:plan_id>/add_batch', methods=['POST'])
 @operator_required
 def add_batch(plan_id):
@@ -485,22 +515,26 @@ def add_batch(plan_id):
         for recipe_item in plan.template.recipe_items:
             needed_qty = batch.weight * float(recipe_item.percentage) / 100
             
-            # Находим подходящую партию сырья (с самым ранним сроком годности)
-            raw_material = RawMaterial.query.filter_by(
-                type_id=recipe_item.material_type_id
-            ).filter(
-                RawMaterial.quantity_kg >= needed_qty
-            ).order_by(
-                RawMaterial.expiration_date.asc().nullslast()
-            ).first()
+            # Получаем список партий с нужным количеством
+            materials_to_use, shortage = get_available_materials_for_batch(
+                needed_qty, recipe_item.material_type_id
+            )
             
-            if raw_material:
+            if shortage > 0:
+                missing_ingredients.append(f"{recipe_item.material_type.name} (нужно {needed_qty:.2f} кг, недостаточно {shortage:.2f} кг)")
+                continue
+            
+            # Создаём записи для каждой использованной партии
+            for material_info in materials_to_use:
+                material = material_info['material']
+                qty = material_info['quantity']
+                
                 # Создаём MaterialBatch и BatchMaterial
                 material_batch = MaterialBatch(
-                    material=raw_material,
-                    batch_number=raw_material.batch_number,
-                    quantity=needed_qty,
-                    remaining_quantity=needed_qty
+                    material=material,
+                    batch_number=material.batch_number,
+                    quantity=qty,
+                    remaining_quantity=qty
                 )
                 db.session.add(material_batch)
                 db.session.flush()
@@ -508,12 +542,17 @@ def add_batch(plan_id):
                 ingredient = BatchMaterial(
                     batch=batch,
                     material_batch=material_batch,
-                    quantity=needed_qty
+                    quantity=qty
                 )
                 db.session.add(ingredient)
-                added_ingredients.append(f"{recipe_item.material_type.name} ({needed_qty:.2f} кг)")
+            
+            # Добавляем информацию об ингредиенте
+            total_used = sum(m['quantity'] for m in materials_to_use)
+            if len(materials_to_use) == 1:
+                added_ingredients.append(f"{recipe_item.material_type.name} ({total_used:.2f} кг из партии {materials_to_use[0]['material'].batch_number})")
             else:
-                missing_ingredients.append(f"{recipe_item.material_type.name} (нужно {needed_qty:.2f} кг)")
+                batches_info = [f"{m['material'].batch_number}({m['quantity']:.2f} кг)" for m in materials_to_use]
+                added_ingredients.append(f"{recipe_item.material_type.name} ({total_used:.2f} кг из партий: {', '.join(batches_info)})")
         
         # Добавляем запись в примечания
         timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
