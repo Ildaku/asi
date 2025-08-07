@@ -1456,6 +1456,130 @@ def export_used_materials(plan_id):
         download_name=filename
     )
 
+@app.route('/production_plans/<int:plan_id>/add_multiple_batches', methods=['POST'])
+@operator_required
+def add_multiple_batches(plan_id):
+    plan = ProductionPlan.query.get_or_404(plan_id)
+    
+    try:
+        # Получаем данные из формы
+        num_batches = int(request.form.get('num_batches', 0))
+        weight_per_batch = float(request.form.get('weight_per_batch', 0))
+        
+        if num_batches <= 0 or weight_per_batch <= 0:
+            flash('Количество замесов и вес должны быть больше 0', 'error')
+            return redirect(url_for('production_plan_detail', plan_id=plan_id))
+        
+        # Проверяем максимальный вес замеса
+        if weight_per_batch > 1000:
+            flash('Вес замеса не может превышать 1000 кг', 'error')
+            return redirect(url_for('production_plan_detail', plan_id=plan_id))
+        
+        # Проверяем, не превышает ли общее количество план
+        total_quantity = sum([batch.weight for batch in plan.batches]) + (num_batches * weight_per_batch)
+        if total_quantity > plan.quantity:
+            flash(f'Общее количество замесов ({total_quantity} кг) превышает план ({plan.quantity} кг)', 'error')
+            return redirect(url_for('production_plan_detail', plan_id=plan_id))
+        
+        # Находим следующий номер замеса
+        existing_batch_numbers = [batch.batch_number for batch in plan.batches]
+        next_batch_number = 1
+        while str(next_batch_number) in existing_batch_numbers:
+            next_batch_number += 1
+        
+        created_batches = []
+        failed_batches = []
+        
+        # Создаём замесы
+        for i in range(num_batches):
+            batch_number = str(next_batch_number + i)
+            
+            batch = ProductionBatch(
+                plan=plan,
+                batch_number=batch_number,
+                weight=weight_per_batch
+            )
+            db.session.add(batch)
+            db.session.flush()  # Получаем ID замеса
+            
+            # Автоматически добавляем все ингредиенты из рецептуры
+            batch_ingredients = []
+            missing_ingredients = []
+            
+            for recipe_item in plan.template.recipe_items:
+                needed_qty = batch.weight * float(recipe_item.percentage) / 100
+                
+                # Получаем список партий с нужным количеством
+                materials_to_use, shortage = get_available_materials_for_batch(
+                    needed_qty, recipe_item.material_type_id
+                )
+                
+                if shortage > 0:
+                    missing_ingredients.append(f"{recipe_item.material_type.name} (нужно {needed_qty:.2f} кг, недостаточно {shortage:.2f} кг)")
+                    continue
+                
+                # Создаём записи для каждой использованной партии
+                for material_info in materials_to_use:
+                    material = material_info['material']
+                    qty = material_info['quantity']
+                    
+                    # Создаём MaterialBatch и BatchMaterial
+                    material_batch = MaterialBatch(
+                        material=material,
+                        batch_number=material.batch_number,
+                        quantity=qty,
+                        remaining_quantity=qty
+                    )
+                    db.session.add(material_batch)
+                    db.session.flush()
+                    
+                    ingredient = BatchMaterial(
+                        batch=batch,
+                        material_batch=material_batch,
+                        quantity=qty
+                    )
+                    db.session.add(ingredient)
+                
+                # Добавляем информацию об ингредиенте
+                total_used = sum(m['quantity'] for m in materials_to_use)
+                if len(materials_to_use) == 1:
+                    batch_ingredients.append(f"{recipe_item.material_type.name} ({total_used:.2f} кг из партии {materials_to_use[0]['material'].batch_number})")
+                else:
+                    batches_info = [f"{m['material'].batch_number}({m['quantity']:.2f} кг)" for m in materials_to_use]
+                    batch_ingredients.append(f"{recipe_item.material_type.name} ({total_used:.2f} кг из партий: {', '.join(batches_info)})")
+            
+            if missing_ingredients:
+                failed_batches.append(f"Замес №{batch_number}: недостаточно сырья - {', '.join(missing_ingredients)}")
+                db.session.rollback()
+                continue
+            else:
+                created_batches.append(f"Замес №{batch_number} ({weight_per_batch} кг): {', '.join(batch_ingredients)}")
+        
+        # Добавляем запись в примечания
+        timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
+        batch_note = f"[{timestamp}] Добавлено {len(created_batches)} замесов по {weight_per_batch} кг каждый"
+        
+        if plan.notes:
+            plan.notes = batch_note + "\n\n" + plan.notes
+        else:
+            plan.notes = batch_note
+            
+        db.session.commit()
+        
+        if created_batches:
+            flash(f'Успешно создано {len(created_batches)} замесов: {"; ".join(created_batches)}', 'success')
+        
+        if failed_batches:
+            flash(f'Не удалось создать замесы: {"; ".join(failed_batches)}', 'warning')
+            
+    except ValueError:
+        flash('Некорректные данные в форме', 'error')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ошибка при создании замесов: {str(e)}', 'error')
+    
+    return redirect(url_for('production_plan_detail', plan_id=plan_id))
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
