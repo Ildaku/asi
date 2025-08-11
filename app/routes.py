@@ -1056,12 +1056,16 @@ def raw_material_forecast():
         for type_id, usage in date_data.items():
             cumulative_usage[type_id] += usage
     
+    # Сортируем даты для отображения
+    sorted_dates = sorted(forecast.keys())
+    
     return render_template(
         'raw_material_forecast.html',
         raw_material_types=raw_material_types,
         current_stock=current_stock,
         forecast=forecast,
-        cumulative_usage=cumulative_usage
+        cumulative_usage=cumulative_usage,
+        sorted_dates=sorted_dates
     )
 
 @app.route('/reports/production_plans', methods=['GET'])
