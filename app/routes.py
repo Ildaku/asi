@@ -1682,3 +1682,47 @@ def apply_migrations():
         return f"Ошибка при применении миграций:<br><pre>{e.stderr}</pre>"
     except FileNotFoundError:
         return "Alembic не найден" 
+
+@app.route('/production_plans/<int:plan_id>/edit_quantity', methods=['POST'])
+@operator_required
+def edit_plan_quantity(plan_id):
+    plan = ProductionPlan.query.get_or_404(plan_id)
+    
+    # Проверяем, что план имеет статус "Черновик"
+    if plan.status != PlanStatus.DRAFT:
+        flash('Можно изменять количество только в планах со статусом "Черновик"', 'error')
+        return redirect(url_for('production_plan_detail', plan_id=plan_id))
+    
+    try:
+        # Получаем новое количество из формы
+        new_quantity = float(request.form.get('new_quantity', 0))
+        
+        if new_quantity <= 0:
+            flash('Количество должно быть больше 0', 'error')
+            return redirect(url_for('production_plan_detail', plan_id=plan_id))
+        
+        # Сохраняем старое количество для записи в примечания
+        old_quantity = plan.quantity
+        
+        # Обновляем количество в плане
+        plan.quantity = new_quantity
+        
+        # Добавляем запись в примечания
+        timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
+        quantity_note = f"[{timestamp}] Изменено количество с {old_quantity:.2f} кг на {new_quantity:.2f} кг"
+        
+        if plan.notes:
+            plan.notes = quantity_note + "\n\n" + plan.notes
+        else:
+            plan.notes = quantity_note
+            
+        db.session.commit()
+        flash(f'Количество плана изменено с {old_quantity:.2f} кг на {new_quantity:.2f} кг', 'success')
+        
+    except ValueError:
+        flash('Некорректное значение количества', 'error')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ошибка при изменении количества: {str(e)}', 'error')
+    
+    return redirect(url_for('production_plan_detail', plan_id=plan_id))

@@ -13,7 +13,12 @@
             <p class="text-muted">
                 Продукт: {{ plan.product.name }}<br>
                 Рецептура: {{ plan.template.name }}<br>
-                Количество: {{ "%.2f"|format(plan.quantity) }} кг<br>
+                Количество: {{ "%.2f"|format(plan.quantity) }} кг
+                {% if plan.status == PlanStatus.DRAFT %}
+                <button class="btn btn-sm btn-outline-primary ms-2" data-bs-toggle="modal" data-bs-target="#editQuantityModal">
+                    ✏️ Изменить
+                </button>
+                {% endif %}<br>
                 Дата: {{ plan.created_at.strftime('%d.%m.%Y') }}
             </p>
         </div>
@@ -371,6 +376,40 @@
                     <button type="submit" class="btn btn-danger">Удалить все замесы</button>
                 </form>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно изменения количества плана -->
+<div class="modal fade" id="editQuantityModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Изменить количество плана</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('edit_plan_quantity', plan_id=plan.id) }}">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <strong>Текущее количество:</strong> {{ "%.2f"|format(plan.quantity) }} кг
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_quantity" class="form-label">Новое количество (кг)</label>
+                        <input type="number" class="form-control" id="new_quantity" name="new_quantity" 
+                               min="0.01" step="0.01" required 
+                               value="{{ "%.2f"|format(plan.quantity) }}"
+                               placeholder="Введите новое количество">
+                        <div class="form-text">Введите количество в килограммах</div>
+                    </div>
+                    <div class="alert alert-warning">
+                        <strong>Внимание!</strong> Изменение количества повлияет на расчёт потребности в сырье и прогнозы.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
