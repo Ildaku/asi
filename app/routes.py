@@ -1726,3 +1726,95 @@ def edit_plan_quantity(plan_id):
         flash(f'Ошибка при изменении количества: {str(e)}', 'error')
     
     return redirect(url_for('production_plan_detail', plan_id=plan_id))
+
+@app.route('/products/<int:product_id>/edit_recipe', methods=['GET', 'POST'])
+@admin_required
+def edit_product_recipe(product_id):
+    product = Product.query.get_or_404(product_id)
+    
+    if request.method == 'GET':
+        # Получаем текущую рецептуру
+        recipe_items = RecipeItem.query.filter_by(recipe_id=product.recipe_id).order_by(RecipeItem.id).all()
+        raw_material_types = RawMaterialType.query.order_by(RawMaterialType.name).all()
+        
+        return render_template(
+            'edit_product_recipe.html',
+            product=product,
+            recipe_items=recipe_items,
+            raw_material_types=raw_material_types
+        )
+    
+    elif request.method == 'POST':
+        try:
+            # Получаем данные из формы
+            material_type_ids = request.form.getlist('material_type_id[]')
+            percentages = request.form.getlist('percentage[]')
+            
+            # Валидация данных
+            if not material_type_ids or not percentages:
+                flash('Необходимо указать хотя бы один ингредиент', 'error')
+                return redirect(url_for('edit_product_recipe', product_id=product_id))
+            
+            if len(material_type_ids) != len(percentages):
+                flash('Ошибка в данных формы', 'error')
+                return redirect(url_for('edit_product_recipe', product_id=product_id))
+            
+            # Проверяем, что все проценты положительные
+            total_percentage = 0
+            for percentage_str in percentages:
+                try:
+                    percentage = float(percentage_str)
+                    if percentage <= 0:
+                        flash('Процент каждого ингредиента должен быть больше 0', 'error')
+                        return redirect(url_for('edit_product_recipe', product_id=product_id))
+                    total_percentage += percentage
+                except ValueError:
+                    flash('Некорректное значение процента', 'error')
+                    return redirect(url_for('edit_product_recipe', product_id=product_id))
+            
+            # Проверяем, что сумма процентов = 100%
+            if abs(total_percentage - 100.0) > 0.001:
+                flash(f'Сумма процентов должна быть равна 100%. Текущая сумма: {total_percentage:.3f}%', 'error')
+                return redirect(url_for('edit_product_recipe', product_id=product_id))
+            
+            # Проверяем уникальность типов сырья
+            if len(set(material_type_ids)) != len(material_type_ids):
+                flash('Каждый тип сырья может быть указан только один раз', 'error')
+                return redirect(url_for('edit_product_recipe', product_id=product_id))
+            
+            # Проверяем, не используется ли продукт в активных планах
+            active_plans = ProductionPlan.query.filter(
+                ProductionPlan.product_id == product_id,
+                ProductionPlan.status.in_([PlanStatus.APPROVED, PlanStatus.IN_PROGRESS])
+            ).first()
+            
+            if active_plans:
+                flash('Нельзя изменять рецептуру продукта, который используется в активных планах производства', 'error')
+                return redirect(url_for('edit_product_recipe', product_id=product_id))
+            
+            # Начинаем транзакцию
+            db.session.begin()
+            
+            # Удаляем старые записи рецептуры
+            RecipeItem.query.filter_by(recipe_id=product.recipe_id).delete()
+            
+            # Создаём новые записи рецептуры
+            for material_type_id, percentage_str in zip(material_type_ids, percentages):
+                percentage = float(percentage_str)
+                recipe_item = RecipeItem(
+                    recipe_id=product.recipe_id,
+                    material_type_id=int(material_type_id),
+                    percentage=percentage
+                )
+                db.session.add(recipe_item)
+            
+            # Сохраняем изменения
+            db.session.commit()
+            
+            flash('Рецептура продукта успешно обновлена', 'success')
+            return redirect(url_for('products'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Ошибка при обновлении рецептуры: {str(e)}', 'error')
+            return redirect(url_for('edit_product_recipe', product_id=product_id))
