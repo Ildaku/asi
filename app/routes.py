@@ -1734,18 +1734,32 @@ def edit_product_recipe(product_id):
     
     if request.method == 'GET':
         # Получаем текущую рецептуру
-        recipe_items = RecipeItem.query.filter_by(recipe_id=product.recipe_id).order_by(RecipeItem.id).all()
+        if not product.recipe_templates:
+            flash('У продукта нет рецептуры для редактирования', 'error')
+            return redirect(url_for('products'))
+        
+        # Берём первую рецептуру (или можно добавить выбор конкретной)
+        recipe_template = product.recipe_templates[0]
+        recipe_items = RecipeItem.query.filter_by(template_id=recipe_template.id).order_by(RecipeItem.id).all()
         raw_material_types = RawMaterialType.query.order_by(RawMaterialType.name).all()
         
         return render_template(
             'edit_product_recipe.html',
             product=product,
+            recipe_template=recipe_template,
             recipe_items=recipe_items,
             raw_material_types=raw_material_types
         )
     
     elif request.method == 'POST':
         try:
+            # Проверяем наличие рецептуры
+            if not product.recipe_templates:
+                flash('У продукта нет рецептуры для редактирования', 'error')
+                return redirect(url_for('products'))
+            
+            recipe_template = product.recipe_templates[0]
+            
             # Получаем данные из формы
             material_type_ids = request.form.getlist('material_type_id[]')
             percentages = request.form.getlist('percentage[]')
@@ -1796,13 +1810,13 @@ def edit_product_recipe(product_id):
             db.session.begin()
             
             # Удаляем старые записи рецептуры
-            RecipeItem.query.filter_by(recipe_id=product.recipe_id).delete()
+            RecipeItem.query.filter_by(template_id=recipe_template.id).delete()
             
             # Создаём новые записи рецептуры
             for material_type_id, percentage_str in zip(material_type_ids, percentages):
                 percentage = float(percentage_str)
                 recipe_item = RecipeItem(
-                    recipe_id=product.recipe_id,
+                    template_id=recipe_template.id,
                     material_type_id=int(material_type_id),
                     percentage=percentage
                 )
