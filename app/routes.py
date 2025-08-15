@@ -1852,29 +1852,97 @@ def cleanup_orphaned_data():
             )
         ).all()
         
+        # Дополнительная диагностика: находим "висящие" ссылки на уровне SQL
+        try:
+            # Проверяем MaterialBatch с несуществующим material_id
+            orphaned_mb_sql = db.session.execute("""
+                SELECT mb.id, mb.material_id, mb.batch_number, mb.quantity
+                FROM material_batches mb
+                LEFT JOIN raw_materials rm ON mb.material_id = rm.id
+                WHERE rm.id IS NULL
+            """).fetchall()
+            
+            # Проверяем BatchMaterial с несуществующим material_batch_id
+            orphaned_bm_sql = db.session.execute("""
+                SELECT bm.id, bm.material_batch_id, bm.batch_id, bm.quantity
+                FROM batch_materials bm
+                LEFT JOIN material_batches mb ON bm.material_batch_id = mb.id
+                WHERE mb.id IS NULL
+            """).fetchall()
+            
+            # Проверяем ProductionBatch с несуществующим plan_id
+            orphaned_pb_sql = db.session.execute("""
+                SELECT pb.id, pb.plan_id, pb.batch_number, pb.weight
+                FROM production_batches pb
+                LEFT JOIN production_plans pp ON pb.plan_id = pp.id
+                WHERE pp.id IS NULL
+            """).fetchall()
+            
+        except Exception as e:
+            orphaned_mb_sql = []
+            orphaned_bm_sql = []
+            orphaned_pb_sql = []
+            print(f"Ошибка SQL диагностики: {e}")
+        
         # Диагностика: находим планы с проблемами
         problematic_plans = []
         for plan in ProductionPlan.query.all():
+            plan_problems = []
+            
             try:
-                # Пытаемся загрузить связанные данные
+                # Проверяем продукт
+                if not plan.product:
+                    plan_problems.append("Продукт не найден")
+                
+                # Проверяем рецептуру
+                if not plan.template:
+                    plan_problems.append("Рецептура не найдена")
+                
+                # Проверяем замесы
                 for batch in plan.batches:
+                    batch_problems = []
+                    
+                    # Проверяем ингредиенты замеса
                     for batch_material in batch.materials:
-                        if not batch_material.material_batch or not batch_material.material_batch.material:
-                            problematic_plans.append({
-                                'id': plan.id,
-                                'batch_number': plan.batch_number,
-                                'product': plan.product.name if plan.product else 'Неизвестно',
-                                'status': plan.status,
-                                'problem': 'Ссылка на удалённое сырьё'
-                            })
-                            break
+                        ingredient_problems = []
+                        
+                        # Проверяем MaterialBatch
+                        if not batch_material.material_batch:
+                            ingredient_problems.append("MaterialBatch не найден")
+                        else:
+                            # Проверяем сырьё
+                            if not batch_material.material_batch.material:
+                                ingredient_problems.append("Сырьё не найдено")
+                            else:
+                                # Проверяем тип сырья
+                                if not batch_material.material_batch.material.type:
+                                    ingredient_problems.append("Тип сырья не найден")
+                        
+                        if ingredient_problems:
+                            batch_problems.append(f"Ингредиент {batch_material.id}: {', '.join(ingredient_problems)}")
+                    
+                    if batch_problems:
+                        plan_problems.append(f"Замес {batch.batch_number}: {', '.join(batch_problems)}")
+                
+                # Если есть проблемы, добавляем план в список
+                if plan_problems:
+                    problematic_plans.append({
+                        'id': plan.id,
+                        'batch_number': plan.batch_number,
+                        'product': plan.product.name if plan.product else 'Неизвестно',
+                        'status': plan.status,
+                        'problems': plan_problems,
+                        'problem_count': len(plan_problems)
+                    })
+                    
             except Exception as e:
                 problematic_plans.append({
                     'id': plan.id,
                     'batch_number': plan.batch_number,
                     'product': 'Ошибка загрузки',
                     'status': 'Ошибка',
-                    'problem': f'Ошибка: {str(e)}'
+                    'problems': [f'Критическая ошибка: {str(e)}'],
+                    'problem_count': 1
                 })
         
         if request.method == 'POST':
@@ -1921,7 +1989,10 @@ def cleanup_orphaned_data():
             'cleanup_orphaned_data.html',
             orphaned_material_batches=orphaned_material_batches,
             orphaned_batch_materials=orphaned_batch_materials,
-            problematic_plans=problematic_plans
+            problematic_plans=problematic_plans,
+            orphaned_mb_sql=orphaned_mb_sql,
+            orphaned_bm_sql=orphaned_bm_sql,
+            orphaned_pb_sql=orphaned_pb_sql
         )
         
     except Exception as e:
