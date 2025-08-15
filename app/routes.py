@@ -1859,29 +1859,31 @@ def cleanup_orphaned_data():
         
         # Дополнительная диагностика: находим "висящие" ссылки на уровне SQL
         try:
+            from sqlalchemy import text
+            
             # Проверяем MaterialBatch с несуществующим material_id
-            orphaned_mb_sql = db.session.execute("""
+            orphaned_mb_sql = db.session.execute(text("""
                 SELECT mb.id, mb.material_id, mb.batch_number, mb.quantity
                 FROM material_batches mb
                 LEFT JOIN raw_materials rm ON mb.material_id = rm.id
                 WHERE rm.id IS NULL
-            """).fetchall()
+            """)).fetchall()
             
             # Проверяем BatchMaterial с несуществующим material_batch_id
-            orphaned_bm_sql = db.session.execute("""
+            orphaned_bm_sql = db.session.execute(text("""
                 SELECT bm.id, bm.material_batch_id, bm.batch_id, bm.quantity
                 FROM batch_materials bm
                 LEFT JOIN material_batches mb ON bm.material_batch_id = mb.id
                 WHERE mb.id IS NULL
-            """).fetchall()
+            """)).fetchall()
             
             # Проверяем ProductionBatch с несуществующим plan_id
-            orphaned_pb_sql = db.session.execute("""
+            orphaned_pb_sql = db.session.execute(text("""
                 SELECT pb.id, pb.plan_id, pb.batch_number, pb.weight
                 FROM production_batches pb
                 LEFT JOIN production_plans pp ON pb.plan_id = pp.id
                 WHERE pp.id IS NULL
-            """).fetchall()
+            """)).fetchall()
             
         except Exception as e:
             orphaned_mb_sql = []
