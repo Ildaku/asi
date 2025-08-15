@@ -28,7 +28,14 @@ def cleanup_orphaned_references():
             print(f"   Найдено: {len(orphaned_mb)} MaterialBatch без сырья")
             if orphaned_mb:
                 for mb in orphaned_mb:
-                    print(f"   - ID: {mb.id}, material_id: {mb.material_id}, партия: {mb.batch_number}, количество: {mb.quantity}")
+                    # Проверяем, есть ли ссылки на этот MaterialBatch
+                    has_references = db.session.execute(text("""
+                        SELECT COUNT(*) FROM batch_materials 
+                        WHERE material_batch_id = :mb_id
+                    """), {"mb_id": mb.id}).scalar()
+                    
+                    ref_status = f" (имеет {has_references} ссылок)" if has_references > 0 else " (без ссылок)"
+                    print(f"   - ID: {mb.id}, material_id: {mb.material_id}, партия: {mb.batch_number}, количество: {mb.quantity}{ref_status}")
             
             # 2. Находим BatchMaterial с несуществующими MaterialBatch
             print("\n📊 Поиск BatchMaterial без MaterialBatch...")
@@ -59,13 +66,26 @@ def cleanup_orphaned_references():
                     print(f"   - ID: {pb.id}, plan_id: {pb.plan_id}, партия: {pb.batch_number}, вес: {pb.weight}")
             
             # 4. Подсчитываем общее количество проблем
-            total_problems = len(orphaned_mb) + len(orphaned_bm) + len(orphaned_pb)
+            # Считаем только те MaterialBatch, которые можно удалить (без ссылок)
+            deletable_mb_count = 0
+            for mb in orphaned_mb:
+                has_references = db.session.execute(text("""
+                    SELECT COUNT(*) FROM batch_materials 
+                    WHERE material_batch_id = :mb_id
+                """), {"mb_id": mb.id}).scalar()
+                if has_references == 0:
+                    deletable_mb_count += 1
+            
+            total_problems = deletable_mb_count + len(orphaned_bm) + len(orphaned_pb)
             
             if total_problems == 0:
                 print("\n🎉 Проблем не обнаружено! Все ссылки корректны.")
                 return
             
             print(f"\n⚠️  Всего найдено проблем: {total_problems}")
+            print(f"   - MaterialBatch для удаления: {deletable_mb_count}")
+            print(f"   - BatchMaterial для удаления: {len(orphaned_bm)}")
+            print(f"   - ProductionBatch для удаления: {len(orphaned_pb)}")
             
             # 5. Запрашиваем подтверждение
             print("\n" + "=" * 50)
@@ -88,12 +108,24 @@ def cleanup_orphaned_references():
                     db.session.execute(text("DELETE FROM batch_materials WHERE id = :id"), {"id": bm.id})
                 print("   ✅ BatchMaterial очищены")
             
-            # Удаляем MaterialBatch с несуществующим сырьём
+            # Удаляем MaterialBatch с несуществующим сырьём (только те, на которые не ссылаются BatchMaterial)
             if orphaned_mb:
-                print(f"   Удаляю {len(orphaned_mb)} MaterialBatch...")
+                print(f"   Удаляю MaterialBatch без ссылок...")
+                deleted_mb_count = 0
                 for mb in orphaned_mb:
-                    db.session.execute(text("DELETE FROM material_batches WHERE id = :id"), {"id": mb.id})
-                print("   ✅ MaterialBatch очищены")
+                    # Проверяем, есть ли ссылки на этот MaterialBatch
+                    has_references = db.session.execute(text("""
+                        SELECT COUNT(*) FROM batch_materials 
+                        WHERE material_batch_id = :mb_id
+                    """), {"mb_id": mb.id}).scalar()
+                    
+                    if has_references == 0:
+                        db.session.execute(text("DELETE FROM material_batches WHERE id = :id"), {"id": mb.id})
+                        deleted_mb_count += 1
+                    else:
+                        print(f"     ⚠️  MaterialBatch ID {mb.id} имеет {has_references} ссылок, пропускаю")
+                
+                print(f"   ✅ Удалено MaterialBatch: {deleted_mb_count}")
             
             # Удаляем ProductionBatch с несуществующими планами
             if orphaned_pb:
@@ -106,6 +138,9 @@ def cleanup_orphaned_references():
             db.session.commit()
             print(f"\n🎉 Очистка завершена успешно!")
             print(f"   Удалено записей: {total_problems}")
+            print(f"   - MaterialBatch: {deleted_mb_count}")
+            print(f"   - BatchMaterial: {len(orphaned_bm)}")
+            print(f"   - ProductionBatch: {len(orphaned_pb)}")
             
             # 8. Проверяем результат
             print("\n🔍 Проверяю результат...")
