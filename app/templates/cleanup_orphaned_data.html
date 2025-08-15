@@ -52,7 +52,13 @@
                 <div class="col-md-3">
                     <div class="alert alert-secondary">
                         <strong>SQL диагностика:</strong><br>
-                        <span class="h4">{{ orphaned_mb_sql|length + orphaned_bm_sql|length + orphaned_pb_sql|length }}</span> проблем
+                        <span class="h4">
+                            {% if orphaned_mb_sql and orphaned_bm_sql and orphaned_pb_sql %}
+                                {{ orphaned_mb_sql|length + orphaned_bm_sql|length + orphaned_pb_sql|length }}
+                            {% else %}
+                                0
+                            {% endif %}
+                        </span> проблем
                     </div>
                 </div>
             </div>

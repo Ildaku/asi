@@ -1839,6 +1839,11 @@ def cleanup_orphaned_data():
     """Временный маршрут для очистки 'висящих' ссылок на удалённое сырьё"""
     
     try:
+        # Инициализируем переменные SQL диагностики
+        orphaned_mb_sql = []
+        orphaned_bm_sql = []
+        orphaned_pb_sql = []
+        
         # Диагностика: находим "висящие" ссылки
         orphaned_material_batches = db.session.query(MaterialBatch).filter(
             ~MaterialBatch.material_id.in_(
