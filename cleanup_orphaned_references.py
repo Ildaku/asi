@@ -37,19 +37,33 @@ def cleanup_orphaned_references():
                     ref_status = f" (имеет {has_references} ссылок)" if has_references > 0 else " (без ссылок)"
                     print(f"   - ID: {mb.id}, material_id: {mb.material_id}, партия: {mb.batch_number}, количество: {mb.quantity}{ref_status}")
             
-            # 2. Находим BatchMaterial с несуществующими MaterialBatch
-            print("\n📊 Поиск BatchMaterial без MaterialBatch...")
+            # 2. Находим BatchMaterial с несуществующими MaterialBatch ИЛИ с MaterialBatch без сырья
+            print("\n📊 Поиск BatchMaterial с проблемными MaterialBatch...")
             orphaned_bm = db.session.execute(text("""
                 SELECT bm.id, bm.material_batch_id, bm.batch_id, bm.quantity
                 FROM batch_materials bm
                 LEFT JOIN material_batches mb ON bm.material_batch_id = mb.id
-                WHERE mb.id IS NULL
+                WHERE mb.id IS NULL OR mb.material_id IS NULL
             """)).fetchall()
             
-            print(f"   Найдено: {len(orphaned_bm)} BatchMaterial без MaterialBatch")
+            print(f"   Найдено: {len(orphaned_bm)} BatchMaterial с проблемными MaterialBatch")
             if orphaned_bm:
                 for bm in orphaned_bm:
-                    print(f"   - ID: {bm.id}, material_batch_id: {bm.material_batch_id}, batch_id: {bm.batch_id}, количество: {bm.quantity}")
+                    # Определяем тип проблемы
+                    if bm.material_batch_id:
+                        mb_info = db.session.execute(text("""
+                            SELECT mb.material_id, mb.batch_number 
+                            FROM material_batches mb 
+                            WHERE mb.id = :mb_id
+                        """), {"mb_id": bm.material_batch_id}).fetchone()
+                        
+                        if mb_info:
+                            problem_type = "без сырья" if mb_info.material_id is None else "не найден"
+                            print(f"   - ID: {bm.id}, material_batch_id: {bm.material_batch_id}, batch_id: {bm.batch_id}, количество: {bm.quantity} (MaterialBatch {problem_type})")
+                        else:
+                            print(f"   - ID: {bm.id}, material_batch_id: {bm.material_batch_id}, batch_id: {bm.batch_id}, количество: {bm.quantity} (MaterialBatch не найден)")
+                    else:
+                        print(f"   - ID: {bm.id}, material_batch_id: {bm.material_batch_id}, batch_id: {bm.batch_id}, количество: {bm.quantity} (material_batch_id = NULL)")
             
             # 3. Находим ProductionBatch с несуществующими планами
             print("\n📊 Поиск ProductionBatch без планов...")
@@ -101,9 +115,9 @@ def cleanup_orphaned_references():
             # 6. Выполняем очистку
             print("\n🧹 Начинаю очистку...")
             
-            # Удаляем BatchMaterial с несуществующими MaterialBatch
+            # Удаляем BatchMaterial с проблемными MaterialBatch
             if orphaned_bm:
-                print(f"   Удаляю {len(orphaned_bm)} BatchMaterial...")
+                print(f"   Удаляю {len(orphaned_bm)} BatchMaterial с проблемными MaterialBatch...")
                 for bm in orphaned_bm:
                     db.session.execute(text("DELETE FROM batch_materials WHERE id = :id"), {"id": bm.id})
                 print("   ✅ BatchMaterial очищены")
@@ -189,11 +203,11 @@ def check_current_status():
                 WHERE rm.id IS NULL
             """)).scalar()
             
-            # BatchMaterial без MaterialBatch
+            # BatchMaterial с проблемными MaterialBatch
             orphaned_bm = db.session.execute(text("""
                 SELECT COUNT(*) FROM batch_materials bm
                 LEFT JOIN material_batches mb ON bm.material_batch_id = mb.id
-                WHERE mb.id IS NULL
+                WHERE mb.id IS NULL OR mb.material_id IS NULL
             """)).scalar()
             
             # ProductionBatch без планов
@@ -206,7 +220,7 @@ def check_current_status():
             total = orphaned_mb + orphaned_bm + orphaned_pb
             
             print(f"MaterialBatch без сырья: {orphaned_mb}")
-            print(f"BatchMaterial без MaterialBatch: {orphaned_bm}")
+            print(f"BatchMaterial с проблемными MaterialBatch: {orphaned_bm}")
             print(f"ProductionBatch без планов: {orphaned_pb}")
             print(f"Всего проблем: {total}")
             
