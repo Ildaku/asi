@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+{% block title %}Очистка проблемных данных | Planner2{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Главная</a></li>
+        <li class="breadcrumb-item active">Очистка проблемных данных</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>🔧 Очистка проблемных данных</h2>
+            <p class="text-muted">
+                Эта страница помогает диагностировать и исправить проблемы с "висящими" ссылками на удалённое сырьё.
+            </p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">← На главную</a>
+        </div>
+    </div>
+
+    <!-- Диагностика -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">📊 Диагностика проблем</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="alert alert-info">
+                        <strong>MaterialBatch без сырья:</strong><br>
+                        <span class="h4">{{ orphaned_material_batches|length }}</span> записей
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="alert alert-warning">
+                        <strong>BatchMaterial без MaterialBatch:</strong><br>
+                        <span class="h4">{{ orphaned_batch_materials|length }}</span> записей
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="alert alert-danger">
+                        <strong>Проблемные планы:</strong><br>
+                        <span class="h4">{{ problematic_plans|length }}</span> планов
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Детальная информация -->
+    {% if orphaned_material_batches or orphaned_batch_materials or problematic_plans %}
+    
+    <!-- MaterialBatch без сырья -->
+    {% if orphaned_material_batches %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">❌ MaterialBatch без существующего сырья</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>ID сырья</th>
+                            <th>Номер партии</th>
+                            <th>Количество</th>
+                            <th>Дата создания</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mb in orphaned_material_batches %}
+                        <tr>
+                            <td>{{ mb.id }}</td>
+                            <td><span class="text-danger">{{ mb.material_id }}</span> (удалено)</td>
+                            <td>{{ mb.batch_number }}</td>
+                            <td>{{ "%.2f"|format(mb.quantity) }} кг</td>
+                            <td>{{ mb.created_at.strftime('%d.%m.%Y %H:%M') if mb.created_at else 'Не указано' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- BatchMaterial без MaterialBatch -->
+    {% if orphaned_batch_materials %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">❌ BatchMaterial без существующего MaterialBatch</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>ID MaterialBatch</th>
+                            <th>ID замеса</th>
+                            <th>Количество</th>
+                            <th>Дата создания</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bm in orphaned_batch_materials %}
+                        <tr>
+                            <td>{{ bm.id }}</td>
+                            <td><span class="text-danger">{{ bm.material_batch_id }}</span> (удалено)</td>
+                            <td>{{ bm.batch_id }}</td>
+                            <td>{{ "%.2f"|format(bm.quantity) }} кг</td>
+                            <td>{{ bm.created_at.strftime('%d.%m.%Y %H:%M') if bm.created_at else 'Не указано' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Проблемные планы -->
+    {% if problematic_plans %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">⚠️ Планы с проблемами</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>ID плана</th>
+                            <th>Номер партии</th>
+                            <th>Продукт</th>
+                            <th>Статус</th>
+                            <th>Проблема</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for plan in problematic_plans %}
+                        <tr>
+                            <td>{{ plan.id }}</td>
+                            <td>{{ plan.batch_number }}</td>
+                            <td>{{ plan.product }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if plan.status == 'завершен' else 'warning' }}">
+                                    {{ plan.status }}
+                                </span>
+                            </td>
+                            <td>{{ plan.problem }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Кнопки очистки -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">🧹 Очистка данных</h5>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Внимание!</strong> Очистка удалит "висящие" ссылки. Это действие нельзя отменить.
+            </div>
+            
+            <form method="POST" class="d-inline">
+                {% if orphaned_material_batches %}
+                <button type="submit" name="action" value="cleanup_material_batches" 
+                        class="btn btn-warning me-2" 
+                        onclick="return confirm('Удалить {{ orphaned_material_batches|length }} MaterialBatch без сырья?')">
+                    <i class="fas fa-trash"></i> Очистить MaterialBatch
+                </button>
+                {% endif %}
+                
+                {% if orphaned_batch_materials %}
+                <button type="submit" name="action" value="cleanup_batch_materials" 
+                        class="btn btn-warning me-2"
+                        onclick="return confirm('Удалить {{ orphaned_batch_materials|length }} BatchMaterial без MaterialBatch?')">
+                    <i class="fas fa-trash"></i> Очистить BatchMaterial
+                </button>
+                {% endif %}
+                
+                {% if orphaned_material_batches or orphaned_batch_materials %}
+                <button type="submit" name="action" value="cleanup_all" 
+                        class="btn btn-danger"
+                        onclick="return confirm('Удалить ВСЕ проблемные записи? Это действие нельзя отменить!')">
+                    <i class="fas fa-broom"></i> Очистить всё
+                </button>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Нет проблем -->
+    <div class="card">
+        <div class="card-body text-center">
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <h4>🎉 Проблем не обнаружено!</h4>
+                <p class="mb-0">Все данные в порядке, "висящих" ссылок нет.</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

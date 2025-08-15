@@ -1832,3 +1832,98 @@ def edit_product_recipe(product_id):
             db.session.rollback()
             flash(f'Ошибка при обновлении рецептуры: {str(e)}', 'error')
             return redirect(url_for('edit_product_recipe', product_id=product_id))
+
+@app.route('/admin/cleanup_orphaned_data')
+@admin_required
+def cleanup_orphaned_data():
+    """Временный маршрут для очистки 'висящих' ссылок на удалённое сырьё"""
+    
+    try:
+        # Диагностика: находим "висящие" ссылки
+        orphaned_material_batches = db.session.query(MaterialBatch).filter(
+            ~MaterialBatch.material_id.in_(
+                db.session.query(RawMaterial.id)
+            )
+        ).all()
+        
+        orphaned_batch_materials = db.session.query(BatchMaterial).filter(
+            ~BatchMaterial.material_batch_id.in_(
+                db.session.query(MaterialBatch.id)
+            )
+        ).all()
+        
+        # Диагностика: находим планы с проблемами
+        problematic_plans = []
+        for plan in ProductionPlan.query.all():
+            try:
+                # Пытаемся загрузить связанные данные
+                for batch in plan.batches:
+                    for batch_material in batch.materials:
+                        if not batch_material.material_batch or not batch_material.material_batch.material:
+                            problematic_plans.append({
+                                'id': plan.id,
+                                'batch_number': plan.batch_number,
+                                'product': plan.product.name if plan.product else 'Неизвестно',
+                                'status': plan.status,
+                                'problem': 'Ссылка на удалённое сырьё'
+                            })
+                            break
+            except Exception as e:
+                problematic_plans.append({
+                    'id': plan.id,
+                    'batch_number': plan.batch_number,
+                    'product': 'Ошибка загрузки',
+                    'status': 'Ошибка',
+                    'problem': f'Ошибка: {str(e)}'
+                })
+        
+        if request.method == 'POST':
+            # Выполняем очистку
+            action = request.form.get('action')
+            
+            if action == 'cleanup_material_batches':
+                # Удаляем "висящие" MaterialBatch
+                count = 0
+                for orphan in orphaned_material_batches:
+                    db.session.delete(orphan)
+                    count += 1
+                db.session.commit()
+                flash(f'Удалено {count} "висящих" MaterialBatch', 'success')
+                
+            elif action == 'cleanup_batch_materials':
+                # Удаляем "висящие" BatchMaterial
+                count = 0
+                for orphan in orphaned_batch_materials:
+                    db.session.delete(orphan)
+                    count += 1
+                db.session.commit()
+                flash(f'Удалено {count} "висящих" BatchMaterial', 'success')
+                
+            elif action == 'cleanup_all':
+                # Удаляем всё "висящее"
+                count_mb = 0
+                for orphan in orphaned_material_batches:
+                    db.session.delete(orphan)
+                    count_mb += 1
+                
+                count_bm = 0
+                for orphan in orphaned_batch_materials:
+                    db.session.delete(orphan)
+                    count_bm += 1
+                
+                db.session.commit()
+                flash(f'Удалено {count_mb} MaterialBatch и {count_bm} BatchMaterial', 'success')
+            
+            # Перезагружаем страницу для обновления данных
+            return redirect(url_for('cleanup_orphaned_data'))
+        
+        return render_template(
+            'cleanup_orphaned_data.html',
+            orphaned_material_batches=orphaned_material_batches,
+            orphaned_batch_materials=orphaned_batch_materials,
+            problematic_plans=problematic_plans
+        )
+        
+    except Exception as e:
+        flash(f'Ошибка при диагностике: {str(e)}', 'error')
+        return redirect(url_for('index'))
