@@ -16,7 +16,13 @@
                 Количество: {{ "%.2f"|format(plan.quantity) }} кг
                 {% if plan.status == PlanStatus.DRAFT %}
                 <button class="btn btn-sm btn-outline-primary ms-2" data-bs-toggle="modal" data-bs-target="#editQuantityModal">
-                    ✏️ Изменить
+                    ✏️ Изменить количество
+                </button>
+                {% endif %}<br>
+                Название: {{ plan.name }}
+                {% if plan.status == PlanStatus.DRAFT %}
+                <button class="btn btn-sm btn-outline-warning ms-2" data-bs-toggle="modal" data-bs-target="#editNameModal">
+                    ✏️ Изменить название
                 </button>
                 {% endif %}<br>
                 Дата: {{ plan.created_at.strftime('%d.%m.%Y') }}
@@ -408,6 +414,40 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
                     <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно изменения названия плана -->
+<div class="modal fade" id="editNameModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Изменить название плана</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('edit_plan_name', plan_id=plan.id) }}">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <strong>Текущее название:</strong> {{ plan.name }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_name" class="form-label">Новое название</label>
+                        <input type="text" class="form-control" id="new_name" name="new_name" 
+                               required 
+                               value="{{ plan.name }}"
+                               placeholder="Введите новое название">
+                        <div class="form-text">Введите новое название для плана производства</div>
+                    </div>
+                    <div class="alert alert-warning">
+                        <strong>Внимание!</strong> Изменение названия повлияет на отображение в списках и отчётах.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-warning">Сохранить изменения</button>
                 </div>
             </form>
         </div>

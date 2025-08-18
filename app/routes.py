@@ -1727,6 +1727,48 @@ def edit_plan_quantity(plan_id):
     
     return redirect(url_for('production_plan_detail', plan_id=plan_id))
 
+@app.route('/production_plans/<int:plan_id>/edit_name', methods=['POST'])
+@operator_required
+def edit_plan_name(plan_id):
+    plan = ProductionPlan.query.get_or_404(plan_id)
+    
+    # Проверяем, что план имеет статус "Черновик"
+    if plan.status != PlanStatus.DRAFT:
+        flash('Можно изменять название только в планах со статусом "Черновик"', 'error')
+        return redirect(url_for('production_plan_detail', plan_id=plan_id))
+    
+    try:
+        # Получаем новое название из формы
+        new_name = request.form.get('new_name', '').strip()
+        
+        if not new_name:
+            flash('Название не может быть пустым', 'error')
+            return redirect(url_for('production_plan_detail', plan_id=plan_id))
+        
+        # Сохраняем старое название для записи в примечания
+        old_name = plan.name
+        
+        # Обновляем название в плане
+        plan.name = new_name
+        
+        # Добавляем запись в примечания
+        timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
+        name_note = f"[{timestamp}] Изменено название с '{old_name}' на '{new_name}'"
+        
+        if plan.notes:
+            plan.notes = name_note + "\n\n" + plan.notes
+        else:
+            plan.notes = name_note
+            
+        db.session.commit()
+        flash(f'Название плана изменено с "{old_name}" на "{new_name}"', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ошибка при изменении названия: {str(e)}', 'error')
+    
+    return redirect(url_for('production_plan_detail', plan_id=plan_id))
+
 @app.route('/products/<int:product_id>/edit_recipe', methods=['GET', 'POST'])
 @admin_required
 def edit_product_recipe(product_id):
