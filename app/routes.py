@@ -1734,38 +1734,38 @@ def edit_plan_name(plan_id):
     
     # Проверяем, что план имеет статус "Черновик"
     if plan.status != PlanStatus.DRAFT:
-        flash('Можно изменять название только в планах со статусом "Черновик"', 'error')
+        flash('Можно изменять номер партии только в планах со статусом "Черновик"', 'error')
         return redirect(url_for('production_plan_detail', plan_id=plan_id))
     
     try:
-        # Получаем новое название из формы
-        new_name = request.form.get('new_name', '').strip()
+        # Получаем новый номер партии из формы
+        new_batch_number = request.form.get('new_name', '').strip()
         
-        if not new_name:
-            flash('Название не может быть пустым', 'error')
+        if not new_batch_number:
+            flash('Номер партии не может быть пустым', 'error')
             return redirect(url_for('production_plan_detail', plan_id=plan_id))
         
-        # Сохраняем старое название для записи в примечания
-        old_name = plan.name
+        # Сохраняем старый номер партии для записи в примечания
+        old_batch_number = plan.batch_number
         
-        # Обновляем название в плане
-        plan.name = new_name
+        # Обновляем номер партии в плане
+        plan.batch_number = new_batch_number
         
         # Добавляем запись в примечания
         timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
-        name_note = f"[{timestamp}] Изменено название с '{old_name}' на '{new_name}'"
+        batch_number_note = f"[{timestamp}] Изменен номер партии с '{old_batch_number}' на '{new_batch_number}'"
         
         if plan.notes:
-            plan.notes = name_note + "\n\n" + plan.notes
+            plan.notes = batch_number_note + "\n\n" + plan.notes
         else:
-            plan.notes = name_note
+            plan.notes = batch_number_note
             
         db.session.commit()
-        flash(f'Название плана изменено с "{old_name}" на "{new_name}"', 'success')
+        flash(f'Номер партии изменен с "{old_batch_number}" на "{new_batch_number}"', 'success')
         
     except Exception as e:
         db.session.rollback()
-        flash(f'Ошибка при изменении названия: {str(e)}', 'error')
+        flash(f'Ошибка при изменении номера партии: {str(e)}', 'error')
     
     return redirect(url_for('production_plan_detail', plan_id=plan_id))
 

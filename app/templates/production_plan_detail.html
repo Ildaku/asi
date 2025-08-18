@@ -19,10 +19,10 @@
                     ✏️ Изменить количество
                 </button>
                 {% endif %}<br>
-                Название: {{ plan.name }}
+                Номер партии: {{ plan.batch_number }}
                 {% if plan.status == PlanStatus.DRAFT %}
                 <button class="btn btn-sm btn-outline-warning ms-2" data-bs-toggle="modal" data-bs-target="#editNameModal">
-                    ✏️ Изменить название
+                    ✏️ Изменить номер партии
                 </button>
                 {% endif %}<br>
                 Дата: {{ plan.created_at.strftime('%d.%m.%Y') }}
@@ -420,29 +420,29 @@
     </div>
 </div>
 
-<!-- Модальное окно изменения названия плана -->
+<!-- Модальное окно изменения номера партии плана -->
 <div class="modal fade" id="editNameModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Изменить название плана</h5>
+                <h5 class="modal-title">Изменить номер партии плана</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="{{ url_for('edit_plan_name', plan_id=plan.id) }}">
                 <div class="modal-body">
                     <div class="alert alert-info">
-                        <strong>Текущее название:</strong> {{ plan.name }}
+                        <strong>Текущий номер партии:</strong> {{ plan.batch_number }}
                     </div>
                     <div class="mb-3">
-                        <label for="new_name" class="form-label">Новое название</label>
+                        <label for="new_name" class="form-label">Новый номер партии</label>
                         <input type="text" class="form-control" id="new_name" name="new_name" 
                                required 
-                               value="{{ plan.name }}"
-                               placeholder="Введите новое название">
-                        <div class="form-text">Введите новое название для плана производства</div>
+                               value="{{ plan.batch_number }}"
+                               placeholder="Введите новый номер партии">
+                        <div class="form-text">Введите новый номер партии для плана производства</div>
                     </div>
                     <div class="alert alert-warning">
-                        <strong>Внимание!</strong> Изменение названия повлияет на отображение в списках и отчётах.
+                        <strong>Внимание!</strong> Изменение номера партии повлияет на отображение в списках и отчётах.
                     </div>
                 </div>
                 <div class="modal-footer">
