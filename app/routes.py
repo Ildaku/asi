@@ -188,6 +188,51 @@ def delete_raw_material(id):
     flash('Партия сырья удалена!', 'success')
     return redirect(url_for('raw_materials'))
 
+@app.route('/raw_materials/edit_used_up/<int:material_id>', methods=['POST'])
+@admin_required
+def edit_used_up_material(material_id):
+    """Редактирует количество выработанного сырья с автоматическим перемещением между категориями"""
+    material = RawMaterial.query.get_or_404(material_id)
+    
+    try:
+        new_quantity = float(request.form.get('new_quantity', 0))
+        
+        if new_quantity < 0:
+            flash('Количество не может быть отрицательным', 'error')
+            return redirect(url_for('raw_materials'))
+        
+        old_quantity = material.quantity_kg
+        
+        # Обновляем количество
+        material.quantity_kg = new_quantity
+        
+        # Добавляем запись в notes о изменении
+        timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
+        quantity_note = f"[{timestamp}] Количество изменено с {old_quantity:.2f} кг на {new_quantity:.2f} кг"
+        
+        if material.notes:
+            material.notes = quantity_note + "\n\n" + material.notes
+        else:
+            material.notes = quantity_note
+        
+        db.session.commit()
+        
+        # Определяем тип сообщения в зависимости от изменения
+        if old_quantity == 0 and new_quantity > 0:
+            flash(f'Сырьё "{material.batch_number}" перемещено в доступное! Количество: {new_quantity:.2f} кг', 'success')
+        elif old_quantity > 0 and new_quantity == 0:
+            flash(f'Сырьё "{material.batch_number}" перемещено в выработанное!', 'info')
+        else:
+            flash(f'Количество сырья "{material.batch_number}" изменено с {old_quantity:.2f} кг на {new_quantity:.2f} кг', 'success')
+        
+    except ValueError:
+        flash('Некорректное значение количества', 'error')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ошибка при обновлении: {e}', 'error')
+    
+    return redirect(url_for('raw_materials'))
+
 # --- Продукты ---
 @app.route('/products', methods=['GET', 'POST'])
 @login_required

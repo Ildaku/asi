@@ -158,6 +158,13 @@
               {% if current_user.is_admin() %}
               <div class="btn-group">
                 <button type="button" 
+                        class="btn btn-sm btn-outline-warning"
+                        data-bs-toggle="modal"
+                        data-bs-target="#editUsedUpMaterialModal{{ material.id }}"
+                        title="Редактировать количество">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button type="button" 
                         class="btn btn-sm btn-outline-danger"
                         data-bs-toggle="modal"
                         data-bs-target="#deleteMaterialModalUsed{{ material.id }}"
@@ -236,6 +243,47 @@
         </div>
     </div>
 </div>
+
+<!-- Модальные окна редактирования выработанного сырья -->
+{% for material in used_up_materials %}
+<div class="modal fade" id="editUsedUpMaterialModal{{ material.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Редактировать выработанное сырьё</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('edit_used_up_material', material_id=material.id) }}">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <strong>Тип сырья:</strong> {{ material.type.name if material.type else 'N/A' }}<br>
+                        <strong>Номер партии:</strong> {{ material.batch_number or 'N/A' }}<br>
+                        <strong>Текущее количество:</strong> {{ material.quantity_kg }} кг
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_quantity_{{ material.id }}" class="form-label">Новое количество (кг)</label>
+                        <input type="number" class="form-control" id="new_quantity_{{ material.id }}" 
+                               name="new_quantity" min="0" step="0.01" required 
+                               value="{{ material.quantity_kg }}"
+                               placeholder="Введите новое количество">
+                        <div class="form-text">
+                            <i class="fas fa-info-circle"></i> Если количество > 0, сырьё автоматически переместится в "Доступное сырьё"
+                        </div>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Внимание!</strong> Изменение количества повлияет на отображение сырья в списках.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-warning">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
 
 <!-- Модальные окна удаления -->
 {% for material in materials %}
