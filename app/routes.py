@@ -54,6 +54,38 @@ def delete_raw_material_type(id):
     return redirect(url_for('raw_material_types'))
 
 # --- Сырьё (партии) ---
+
+def sync_material_batch_numbers(raw_material_id):
+    """Синхронизирует номера партий во всех связанных записях material_batches"""
+    
+    try:
+        raw_material = RawMaterial.query.get(raw_material_id)
+        if not raw_material:
+            return False
+        
+        # Находим все material_batches с этим сырьём
+        material_batches = MaterialBatch.query.filter_by(
+            material_id=raw_material_id
+        ).all()
+        
+        updated_count = 0
+        for mb in material_batches:
+            if mb.batch_number != raw_material.batch_number:
+                mb.batch_number = raw_material.batch_number
+                updated_count += 1
+        
+        if updated_count > 0:
+            db.session.commit()
+            return updated_count
+        
+        return 0
+        
+    except Exception as e:
+        # В случае ошибки откатываем изменения
+        db.session.rollback()
+        print(f"Ошибка при синхронизации номеров партий: {e}")
+        return False
+
 @app.route('/raw_materials', methods=['GET', 'POST'])
 @login_required
 def raw_materials():
@@ -102,33 +134,47 @@ def raw_materials():
     return render_template('raw_materials.html', form=form, materials=materials, used_up_materials=used_up_materials)
 
 @app.route('/raw_materials/edit/<int:id>', methods=['GET', 'POST'])
+
 @admin_required
 def edit_raw_material(id):
     material = RawMaterial.query.get_or_404(id)
     form = RawMaterialForm(obj=material)
     form.type_id.choices = [(t.id, t.name) for t in RawMaterialType.query.all()]
     if form.validate_on_submit():
-        # Сохраняем старое количество для логирования изменений
+        # Сохраняем старые значения для логирования изменений
         old_quantity = material.quantity_kg
+        old_batch_number = material.batch_number
         new_quantity = form.quantity_kg.data
+        new_batch_number = form.batch_number.data
         
         material.type_id = form.type_id.data
-        material.batch_number = form.batch_number.data
+        material.batch_number = new_batch_number
         material.quantity_kg = new_quantity
         material.date_received = form.date_received.data or material.date_received
         material.expiration_date = form.expiration_date.data or material.expiration_date
         
-        db.session.commit()
-        
-        # Показываем информацию об изменении количества
-        if old_quantity != new_quantity:
-            change = new_quantity - old_quantity
-            if change > 0:
-                flash(f'Партия сырья обновлена! Количество увеличено на {change:.2f} кг (с {old_quantity:.2f} до {new_quantity:.2f} кг)', 'success')
+        try:
+            db.session.commit()
+            
+            # Синхронизируем номера партий в связанных записях
+            if old_batch_number != new_batch_number:
+                updated_count = sync_material_batch_numbers(material.id)
+                if updated_count > 0:
+                    flash(f'Номер партии синхронизирован в {updated_count} замесах', 'info')
+            
+            # Показываем информацию об изменении количества
+            if old_quantity != new_quantity:
+                change = new_quantity - old_quantity
+                if change > 0:
+                    flash(f'Партия сырья обновлена! Количество увеличено на {change:.2f} кг (с {old_quantity:.2f} до {new_quantity:.2f} кг)', 'success')
+                else:
+                    flash(f'Партия сырья обновлена! Количество уменьшено на {abs(change):.2f} кг (с {old_quantity:.2f} до {new_quantity:.2f} кг)', 'success')
             else:
-                flash(f'Партия сырья обновлена! Количество уменьшено на {abs(change):.2f} кг (с {old_quantity:.2f} до {new_quantity:.2f} кг)', 'success')
-        else:
-            flash('Партия сырья обновлена!', 'success')
+                flash('Партия сырья обновлена!', 'success')
+                
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Ошибка при обновлении: {e}', 'error')
             
         return redirect(url_for('raw_materials'))
     return render_template('edit_raw_material.html', form=form, material=material)
