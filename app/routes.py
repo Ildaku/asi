@@ -206,14 +206,9 @@ def edit_used_up_material(material_id):
         # Обновляем количество
         material.quantity_kg = new_quantity
         
-        # Добавляем запись в notes о изменении
+        # Логирование изменений (без поля notes, так как его нет в модели)
         timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
-        quantity_note = f"[{timestamp}] Количество изменено с {old_quantity:.2f} кг на {new_quantity:.2f} кг"
-        
-        if material.notes:
-            material.notes = quantity_note + "\n\n" + material.notes
-        else:
-            material.notes = quantity_note
+        print(f"[{timestamp}] Сырьё ID {material.id} ({material.batch_number}): количество изменено с {old_quantity:.2f} кг на {new_quantity:.2f} кг")
         
         db.session.commit()
         
