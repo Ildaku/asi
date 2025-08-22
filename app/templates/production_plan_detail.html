@@ -34,6 +34,12 @@
             <a href="{{ url_for('export_used_materials', plan_id=plan.id) }}" class="btn btn-success ms-2">
                 Выгрузить отчёт по использованному сырью
             </a>
+            <form method="POST" action="{{ url_for('undo_plan_completion', plan_id=plan.id) }}" 
+                  style="display: inline;" onsubmit="return confirm('Вы уверены, что хотите отменить завершение плана? Это восстановит списанное сырьё и вернёт план в статус "Черновик".')">
+                <button type="submit" class="btn btn-warning ms-2">
+                    <i class="fas fa-undo"></i> Отменить завершение
+                </button>
+            </form>
             {% endif %}
         </div>
     </div>
@@ -65,6 +71,25 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="card-title">Изменить статус</h5>
+                    
+                    <!-- Кнопка отмены завершения для завершённых планов -->
+                    {% if plan.status == PlanStatus.COMPLETED %}
+                    <div class="alert alert-warning mb-3">
+                        <strong>План завершён!</strong>
+                        <div class="mt-2">
+                            <form method="POST" action="{{ url_for('undo_plan_completion', plan_id=plan.id) }}" 
+                                  style="display: inline;" onsubmit="return confirm('Вы уверены, что хотите отменить завершение плана? Это восстановит списанное сырьё и вернёт план в статус "Черновик".')">
+                                <button type="submit" class="btn btn-warning btn-sm">
+                                    <i class="fas fa-undo"></i> Отменить завершение
+                                </button>
+                            </form>
+                            <small class="text-muted d-block mt-1">
+                                При отмене завершения автоматически восстановится списанное сырьё
+                            </small>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
                     <form method="POST" action="{{ url_for('update_plan_status', plan_id=plan.id) }}">
                         {{ status_form.csrf_token }}
                         <div class="mb-3">

@@ -1855,6 +1855,68 @@ def edit_plan_name(plan_id):
     
     return redirect(url_for('production_plan_detail', plan_id=plan_id))
 
+def restore_raw_materials_from_plan(plan):
+    """Автоматически восстанавливает сырьё из завершённого плана"""
+    
+    restored_count = 0
+    restored_materials = []
+    
+    try:
+        for batch in plan.batches:
+            for batch_material in batch.materials:
+                # Находим соответствующее сырьё
+                raw_material = batch_material.material_batch.material
+                
+                if raw_material:
+                    # Восстанавливаем количество
+                    raw_material.quantity_kg += batch_material.quantity
+                    restored_count += 1
+                    
+                    restored_materials.append(f"{raw_material.batch_number}: +{batch_material.quantity:.2f} кг")
+        
+        return f"{restored_count} позиций: {', '.join(restored_materials)}"
+        
+    except Exception as e:
+        print(f"Ошибка при восстановлении сырья: {e}")
+        return f"Ошибка: {e}"
+
+@app.route('/production_plans/<int:plan_id>/undo_completion', methods=['POST'])
+@admin_required
+def undo_plan_completion(plan_id):
+    """Отменяет завершение плана с автоматическим восстановлением сырья"""
+    
+    plan = ProductionPlan.query.get_or_404(plan_id)
+    
+    if plan.status != PlanStatus.COMPLETED:
+        flash('Можно отменить только завершённые планы', 'error')
+        return redirect(url_for('production_plan_detail', plan_id=plan_id))
+    
+    try:
+        # 1. Автоматически восстанавливаем сырьё
+        restored_materials = restore_raw_materials_from_plan(plan)
+        
+        # 2. Меняем статус на "Черновик"
+        plan.status = PlanStatus.DRAFT
+        
+        # 3. Добавляем запись в notes
+        timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
+        undo_note = f"[{timestamp}] Отменено завершение плана. Восстановлено сырья: {restored_materials}"
+        
+        if plan.notes:
+            plan.notes = undo_note + "\n\n" + plan.notes
+        else:
+            plan.notes = undo_note
+        
+        db.session.commit()
+        
+        flash(f'Завершение плана отменено! Восстановлено сырья: {restored_materials}', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ошибка при отмене завершения: {e}', 'error')
+    
+    return redirect(url_for('production_plan_detail', plan_id=plan_id))
+
 @app.route('/products/<int:product_id>/edit_recipe', methods=['GET', 'POST'])
 @admin_required
 def edit_product_recipe(product_id):
