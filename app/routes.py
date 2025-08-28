@@ -468,9 +468,9 @@ def update_plan_status(plan_id):
         # Проверка перед установкой статуса "завершен"
         if new_status == PlanStatus.COMPLETED:
             # Проверяем, что указана дата производства
-            # if not form.production_date.data:  # Временно отключено
-            #     flash('Для завершения плана необходимо указать дату производства', 'error')
-            #     return redirect(url_for('production_plan_detail', plan_id=plan.id))
+            if not form.production_date.data:
+                flash('Для завершения плана необходимо указать дату производства', 'error')
+                return redirect(url_for('production_plan_detail', plan_id=plan.id))
             
             total_produced = sum(batch.weight for batch in plan.batches)
             # Сравниваем с небольшой погрешностью для чисел с плавающей точкой
@@ -508,22 +508,22 @@ def update_plan_status(plan_id):
                 return redirect(url_for('production_plan_detail', plan_id=plan.id))
         
         # Обновляем дату производства только если план не завершён
-        # if new_status != PlanStatus.COMPLETED and form.production_date.data:  # Временно отключено
-        #     old_date = plan.production_date
-        #     plan.production_date = form.production_date.data
-        #     
-        #     # Логируем изменение даты производства
-        #     if old_date != plan.production_date:
-        #         timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
-        #         if old_date:
-        #             date_note = f"[{timestamp}] Дата производства изменена: {old_date.strftime('%d.%m.%Y')} → {plan.production_date.strftime('%d.%m.%Y')}"
-        #         else:
-        #             date_note = f"[{timestamp}] Дата производства установлена: {plan.production_date.strftime('%d.%m.%Y')}"
-        #         
-        #         if plan.notes:
-        #             plan.notes = date_note + "\n\n" + plan.notes
-        #         else:
-        #             plan.notes = date_note
+        if new_status != PlanStatus.COMPLETED and form.production_date.data:
+            old_date = plan.production_date
+            plan.production_date = form.production_date.data
+            
+            # Логируем изменение даты производства
+            if old_date != plan.production_date:
+                timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
+                if old_date:
+                    date_note = f"[{timestamp}] Дата производства изменена: {old_date.strftime('%d.%m.%Y')} → {plan.production_date.strftime('%d.%m.%Y')}"
+                else:
+                    date_note = f"[{timestamp}] Дата производства установлена: {plan.production_date.strftime('%d.%m.%Y')}"
+                
+                if plan.notes:
+                    plan.notes = date_note + "\n\n" + plan.notes
+                else:
+                    plan.notes = date_note
         
         # Обработка старого формата статуса (без ё)
         old_status_normalized = old_status.replace("утвержден", "утверждён")

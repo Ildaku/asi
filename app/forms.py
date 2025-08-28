@@ -117,7 +117,7 @@ class ProductionPlanForm(FlaskForm):
 
 class ProductionStatusForm(FlaskForm):
     status = SelectField('Статус', validators=[DataRequired()])
-    # production_date = DateField('Дата производства', format='%Y-%m-%d', validators=[Optional()])  # Временно отключено
+    production_date = DateField('Дата производства', format='%Y-%m-%d', validators=[Optional()])
     notes = TextAreaField('Примечание', validators=[Optional(), Length(max=1000)])
     submit = SubmitField('Обновить статус')
 
@@ -135,8 +135,8 @@ class ProductionStatusForm(FlaskForm):
             self.status.choices = [(status.value, status.display) for status in PlanStatus]
         
         # Если план завершён, блокируем изменение даты производства
-        # if plan and plan.status == 'завершен':  # Временно отключено
-        #     self.production_date.render_kw = {'readonly': True, 'disabled': True}
+        if plan and plan.status == 'завершен':
+            self.production_date.render_kw = {'readonly': True, 'disabled': True}
 
 class ProductionBatchForm(FlaskForm):
     batch_number = StringField('Номер замеса', validators=[
