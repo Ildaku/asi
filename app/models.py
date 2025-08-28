@@ -162,7 +162,7 @@ class ProductionPlan(db.Model):
     batch_number = Column(String)
     status = Column(SQLAlchemyEnum(PlanStatus), default=PlanStatus.DRAFT)
     notes = Column(String)
-    production_date = Column(DateTime(timezone=True), nullable=True)  # Дата фактического производства
+    # production_date = Column(DateTime(timezone=True), nullable=True)  # Дата фактического производства - временно отключено
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     created_by = Column(Integer, ForeignKey("users.id"))

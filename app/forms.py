@@ -117,7 +117,7 @@ class ProductionPlanForm(FlaskForm):
 
 class ProductionStatusForm(FlaskForm):
     status = SelectField('Статус', validators=[DataRequired()])
-    production_date = DateField('Дата производства', format='%Y-%m-%d', validators=[Optional()])
+    # production_date = DateField('Дата производства', format='%Y-%m-%d', validators=[Optional()])  # Временно отключено
     notes = TextAreaField('Примечание', validators=[Optional(), Length(max=1000)])
     submit = SubmitField('Обновить статус')
 
