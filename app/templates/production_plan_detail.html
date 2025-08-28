@@ -93,8 +93,8 @@
                     <form method="POST" action="{{ url_for('update_plan_status', plan_id=plan.id) }}">
                         {{ status_form.csrf_token }}
                         
-                        <!-- Поле даты производства -->
-                        <!-- <div class="mb-3">
+                        <!-- Поле даты производства - временно отключено -->
+                        {# <div class="mb-3">
                             {{ status_form.production_date.label }}
                             {{ status_form.production_date(class="form-control") }}
                             <div class="form-text">
@@ -106,7 +106,7 @@
                                     <i class="fas fa-info-circle text-info"></i> Укажите фактическую дату производства для завершения плана
                                 {% endif %}
                             </div>
-                        </div> -->
+                        </div> #}
                         
                         <div class="mb-3">
                             {{ status_form.status.label }}
@@ -134,8 +134,8 @@
                 </div>
             </div>
             
-            <!-- Дата производства -->
-            <!-- <div class="card mt-3">
+            <!-- Дата производства - временно отключено -->
+            {# <div class="card mt-3">
                 <div class="card-body">
                     <h6 class="card-title">Дата производства</h6>
                     {% if plan.production_date %}
@@ -154,7 +154,7 @@
                         </p>
                     {% endif %}
                 </div>
-            </div> -->
+            </div> #}
         </div>
     </div>
 
