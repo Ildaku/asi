@@ -9,7 +9,7 @@ from flask import current_app
 from alembic import context
 
 from app import app
-app.app_context().push()
+# app.app_context().push()  # Временно отключено для исправления конфликта контекста
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
