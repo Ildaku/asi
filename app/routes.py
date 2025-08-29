@@ -507,8 +507,26 @@ def update_plan_status(plan_id):
                 flash(f'Ошибка при списании сырья: {str(e)}', 'error')
                 return redirect(url_for('production_plan_detail', plan_id=plan.id))
         
-        # Обновляем дату производства только если план не завершён
-        if new_status != PlanStatus.COMPLETED and form.production_date.data:
+        # Обновляем дату производства при завершении плана или если указана новая дата
+        if new_status == PlanStatus.COMPLETED and form.production_date.data:
+            # Сохраняем дату производства при завершении
+            old_date = plan.production_date
+            plan.production_date = form.production_date.data
+            
+            # Логируем установку даты производства
+            if old_date != plan.production_date:
+                timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
+                if old_date:
+                    date_note = f"[{timestamp}] Дата производства изменена: {old_date.strftime('%d.%m.%Y')} → {plan.production_date.strftime('%d.%m.%Y')}"
+                else:
+                    date_note = f"[{timestamp}] Дата производства установлена: {plan.production_date.strftime('%d.%m.%Y')}"
+                
+                if plan.notes:
+                    plan.notes = date_note + "\n\n" + plan.notes
+                else:
+                    plan.notes = date_note
+        elif new_status != PlanStatus.COMPLETED and form.production_date.data:
+            # Обновляем дату производства для незавершённых планов
             old_date = plan.production_date
             plan.production_date = form.production_date.data
             
@@ -518,7 +536,7 @@ def update_plan_status(plan_id):
                 if old_date:
                     date_note = f"[{timestamp}] Дата производства изменена: {old_date.strftime('%d.%m.%Y')} → {plan.production_date.strftime('%d.%m.%Y')}"
                 else:
-                    date_note = f"[{timestamp}] Дата производства установлена: {plan.production_date.strftime('%d.%m.%Y')}"
+                    date_note = f"[{timestamp}] Дата производства изменена: {old_date.strftime('%d.%m.%Y')} → {plan.production_date.strftime('%d.%m.%Y')}"
                 
                 if plan.notes:
                     plan.notes = date_note + "\n\n" + plan.notes
