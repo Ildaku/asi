@@ -415,7 +415,25 @@ def production_plans():
     if product_id:
         query = query.filter(ProductionPlan.product_id == product_id)
     if status:
-        query = query.filter(ProductionPlan.status == status)
+        # Преобразуем строковый статус в enum
+        try:
+            if status == 'draft':
+                status_enum = PlanStatus.DRAFT
+            elif status == 'approved':
+                status_enum = PlanStatus.APPROVED
+            elif status == 'in_progress':
+                status_enum = PlanStatus.IN_PROGRESS
+            elif status == 'completed':
+                status_enum = PlanStatus.COMPLETED
+            elif status == 'cancelled':
+                status_enum = PlanStatus.CANCELLED
+            else:
+                status_enum = None
+                
+            if status_enum:
+                query = query.filter(ProductionPlan.status == status_enum)
+        except Exception as e:
+            flash(f'Ошибка фильтрации по статусу: {e}', 'error')
     
     if date_from_str:
         try:
@@ -893,7 +911,7 @@ def production_plan_detail(plan_id):
 def delete_batch(batch_id):
     batch = ProductionBatch.query.get_or_404(batch_id)
     plan = batch.plan
-    if plan.status == 'completed':
+    if plan.status == PlanStatus.COMPLETED:
         flash('Нельзя удалять замес после завершения плана!', 'danger')
         return redirect(url_for('production_plan_detail', plan_id=plan.id))
     db.session.delete(batch)
@@ -1211,7 +1229,25 @@ def production_plans_report():
     if product_id:
         query = query.filter(ProductionPlan.product_id == product_id)
     if status:
-        query = query.filter(ProductionPlan.status == status)
+        # Преобразуем строковый статус в enum
+        try:
+            if status == 'draft':
+                status_enum = PlanStatus.DRAFT
+            elif status == 'approved':
+                status_enum = PlanStatus.APPROVED
+            elif status == 'in_progress':
+                status_enum = PlanStatus.IN_PROGRESS
+            elif status == 'completed':
+                status_enum = PlanStatus.COMPLETED
+            elif status == 'cancelled':
+                status_enum = PlanStatus.CANCELLED
+            else:
+                status_enum = None
+                
+            if status_enum:
+                query = query.filter(ProductionPlan.status == status_enum)
+        except Exception as e:
+            flash(f'Ошибка фильтрации по статусу: {e}', 'error')
     
     if date_from_str:
         try:
