@@ -2218,3 +2218,30 @@ def cleanup_orphaned_data():
     except Exception as e:
         flash(f'Ошибка при диагностике: {str(e)}', 'error')
         return redirect(url_for('index'))
+
+@app.route('/admin/analyze_users')
+@admin_required
+def analyze_users():
+    """Анализ пользователей в базе данных"""
+    try:
+        users = User.query.all()
+        user_analysis = []
+        
+        for user in users:
+            user_info = {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'role': user.role.value if user.role else None,
+                'is_active': user.is_active,
+                'created_at': user.created_at.isoformat() if user.created_at else None,
+                'hashed_password': user.hashed_password,
+                'password_length': len(user.hashed_password) if user.hashed_password else 0
+            }
+            user_analysis.append(user_info)
+        
+        return render_template('analyze_users.html', users=user_analysis)
+        
+    except Exception as e:
+        flash(f'Ошибка при анализе пользователей: {e}', 'error')
+        return redirect(url_for('index'))

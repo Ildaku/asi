@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Анализ пользователей{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title mb-0">🔍 Анализ пользователей в базе данных</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Информация:</strong> Эта страница показывает всех пользователей в системе с их хешами паролей для анализа.
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Имя пользователя</th>
+                                    <th>Email</th>
+                                    <th>Роль</th>
+                                    <th>Активен</th>
+                                    <th>Дата создания</th>
+                                    <th>Хеш пароля</th>
+                                    <th>Длина хеша</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td>{{ user.id }}</td>
+                                    <td>
+                                        <strong>{{ user.username }}</strong>
+                                        {% if user.username == 'admin' %}
+                                            <span class="badge bg-primary ms-2">ADMIN</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ user.email or 'Не указан' }}</td>
+                                    <td>
+                                        <span class="badge {% if user.role == 'ADMIN' %}bg-danger{% else %}bg-success{% endif %}">
+                                            {{ user.role or 'Не указана' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if user.is_active %}
+                                            <span class="badge bg-success">Да</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Нет</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ user.created_at[:10] if user.created_at else 'Не указана' }}</td>
+                                    <td>
+                                        <div class="text-break" style="max-width: 300px;">
+                                            <small class="text-muted">{{ user.hashed_password[:50] }}...</small>
+                                            <button class="btn btn-sm btn-outline-secondary ms-2" 
+                                                    onclick="copyToClipboard('{{ user.hashed_password }}')"
+                                                    title="Копировать полный хеш">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ user.password_length }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h5>📊 Статистика:</h5>
+                        <ul class="list-group">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Всего пользователей
+                                <span class="badge bg-primary rounded-pill">{{ users|length }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Администраторы
+                                <span class="badge bg-danger rounded-pill">
+                                    {{ users|selectattr('role', 'equalto', 'ADMIN')|list|length }}
+                                </span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Операторы
+                                <span class="badge bg-success rounded-pill">
+                                    {{ users|selectattr('role', 'equalto', 'OPERATOR')|list|length }}
+                                </span>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h5>💡 Как создать такого же пользователя:</h5>
+                        <div class="alert alert-warning">
+                            <ol>
+                                <li>Скопируйте хеш пароля работающего пользователя</li>
+                                <li>Используйте скрипт <code>add_new_user.py</code> с тем же паролем</li>
+                                <li>Или создайте через Python shell с тем же хешем</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        // Показать уведомление
+        const button = event.target.closest('button');
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check"></i>';
+        button.classList.remove('btn-outline-secondary');
+        button.classList.add('btn-success');
+        
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-secondary');
+        }, 2000);
+    }).catch(function(err) {
+        console.error('Ошибка копирования: ', err);
+        alert('Ошибка копирования в буфер обмена');
+    });
+}
+</script>
+{% endblock %} 
