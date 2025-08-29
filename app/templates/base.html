@@ -128,20 +128,14 @@
                         Отчёты
                     </a>
                 </li>
-                {% if user and user.is_admin() %}
-                <li class="nav-item">
-                    <a class="nav-link" href="/admin/cleanup_orphaned_data"
-                       data-bs-toggle="tooltip" title="Очистка проблемных данных (только для администраторов)">
-                        🔧 Очистка данных
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/admin/analyze_users"
-                       data-bs-toggle="tooltip" title="Анализ пользователей в системе (только для администраторов)">
-                        🔍 Анализ пользователей
-                    </a>
-                </li>
-                {% endif %}
+                                        {% if user and user.is_admin() %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/cleanup_orphaned_data"
+                               data-bs-toggle="tooltip" title="Очистка проблемных данных (только для администраторов)">
+                                🔧 Очистка данных
+                            </a>
+                        </li>
+                        {% endif %}
             </ul>
             <ul class="navbar-nav ms-auto">
                 {% if user %}
