@@ -417,15 +417,15 @@ def production_plans():
     if status:
         # Преобразуем строковый статус в enum
         try:
-            if status == 'draft':
+            if status == PlanStatus.DRAFT.value:
                 status_enum = PlanStatus.DRAFT
-            elif status == 'approved':
+            elif status == PlanStatus.APPROVED.value:
                 status_enum = PlanStatus.APPROVED
-            elif status == 'in_progress':
+            elif status == PlanStatus.IN_PROGRESS.value:
                 status_enum = PlanStatus.IN_PROGRESS
-            elif status == 'completed':
+            elif status == PlanStatus.COMPLETED.value:
                 status_enum = PlanStatus.COMPLETED
-            elif status == 'cancelled':
+            elif status == PlanStatus.CANCELLED.value:
                 status_enum = PlanStatus.CANCELLED
             else:
                 status_enum = None
@@ -1231,15 +1231,15 @@ def production_plans_report():
     if status:
         # Преобразуем строковый статус в enum
         try:
-            if status == 'draft':
+            if status == PlanStatus.DRAFT.value:
                 status_enum = PlanStatus.DRAFT
-            elif status == 'approved':
+            elif status == PlanStatus.APPROVED.value:
                 status_enum = PlanStatus.APPROVED
-            elif status == 'in_progress':
+            elif status == PlanStatus.IN_PROGRESS.value:
                 status_enum = PlanStatus.IN_PROGRESS
-            elif status == 'completed':
+            elif status == PlanStatus.COMPLETED.value:
                 status_enum = PlanStatus.COMPLETED
-            elif status == 'cancelled':
+            elif status == PlanStatus.CANCELLED.value:
                 status_enum = PlanStatus.CANCELLED
             else:
                 status_enum = None
