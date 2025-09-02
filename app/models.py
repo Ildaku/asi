@@ -10,8 +10,8 @@ class PlanStatus(str, enum.Enum):
     DRAFT = "черновик"
     APPROVED = "утверждён"
     IN_PROGRESS = "в производстве"
-    COMPLETED = "завершен"
-    CANCELLED = "отменен"
+    COMPLETED = "завершён"
+    CANCELLED = "отменён"
 
     @property
     def display(self):
@@ -19,8 +19,8 @@ class PlanStatus(str, enum.Enum):
             PlanStatus.DRAFT: "Черновик",
             PlanStatus.APPROVED: "Утверждён",
             PlanStatus.IN_PROGRESS: "В производстве",
-            PlanStatus.COMPLETED: "Завершен",
-            PlanStatus.CANCELLED: "Отменен"
+            PlanStatus.COMPLETED: "Завершён",
+            PlanStatus.CANCELLED: "Отменён"
         }[self]
 
 class UserRole(str, enum.Enum):
