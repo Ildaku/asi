@@ -410,7 +410,9 @@ def production_plans():
     date_to_str = request.args.get('date_to')
 
     query = ProductionPlan.query
-
+# Скрываем планы "черновик" для операторов
+    if not current_user.is_admin():
+        query = query.filter(ProductionPlan.status != PlanStatus.DRAFT)
     # Применяем фильтры
     if product_id:
         query = query.filter(ProductionPlan.product_id == product_id)

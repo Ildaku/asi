@@ -34,7 +34,9 @@
                     <label for="status" class="form-label">Статус</label>
                     <select name="status" id="status" class="form-select">
                         <option value="">Все статусы</option>
-                        <option value="{{ PlanStatus.DRAFT.value }}" {% if PlanStatus.DRAFT.value == request.args.get('status') %}selected{% endif %}>Черновик</option>
+                        <option value="{{ PlanStatus.DRAFT.value }}" 
+                                    {% if PlanStatus.DRAFT.value == request.args.get('status') %}selected{% endif %}
+                                    {% if not current_user.is_admin() %}style="display: none;"{% endif %}>Черновик</option>
                         <option value="{{ PlanStatus.APPROVED.value }}" {% if PlanStatus.APPROVED.value == request.args.get('status') %}selected{% endif %}>Утверждён</option>
                         <option value="{{ PlanStatus.IN_PROGRESS.value }}" {% if PlanStatus.IN_PROGRESS.value == request.args.get('status') %}selected{% endif %}>В производстве</option>
                         <option value="{{ PlanStatus.COMPLETED.value }}" {% if PlanStatus.COMPLETED.value == request.args.get('status') %}selected{% endif %}>Завершен</option>
