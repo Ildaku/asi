@@ -604,7 +604,7 @@ def get_actual_available_quantity(raw_material):
         ProductionPlan, ProductionBatch.plan_id == ProductionPlan.id
     ).filter(
         MaterialBatch.material_id == raw_material.id,
-        ProductionPlan.status != 'завершен'  # Не учитываем завершённые планы
+        ProductionPlan.status != PlanStatus.COMPLETED   # Не учитываем завершённые планы
     ).scalar() or 0
     
     # Реальный остаток = общее количество - использованное
