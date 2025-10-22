@@ -19,6 +19,15 @@ class RawMaterialTypeForm(FlaskForm):
         super(RawMaterialTypeForm, self).__init__(*args, **kwargs)
         self.allergen_type_id.choices = [(0, 'Нет аллергена')] + [(a.id, a.name) for a in AllergenType.query.all()]
 
+class EditRawMaterialTypeForm(FlaskForm):
+    name = StringField('Название сырья', validators=[DataRequired()])
+    allergen_type_id = SelectField('Аллерген', coerce=int, validators=[Optional()])
+    submit = SubmitField('Сохранить изменения')
+    
+    def __init__(self, *args, **kwargs):
+        super(EditRawMaterialTypeForm, self).__init__(*args, **kwargs)
+        self.allergen_type_id.choices = [(0, 'Нет аллергена')] + [(a.id, a.name) for a in AllergenType.query.all()]
+
 class RawMaterialForm(FlaskForm):
     type_id = SelectField('Вид сырья', coerce=int, validators=[DataRequired()])
     batch_number = StringField('Номер партии', validators=[DataRequired()])

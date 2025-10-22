@@ -10,7 +10,7 @@ from app.forms import (
     RawMaterialForm, ProductForm, RecipeForm, RecipeIngredientForm,
     RawMaterialTypeForm, ProductionPlanForm, ProductionBatchForm,
     ProductionStatusForm, BatchIngredientForm, RawMaterialUsageReportForm,
-    ProductionStatisticsForm, LoginForm, AllergenTypeForm
+    ProductionStatisticsForm, LoginForm, AllergenTypeForm, EditRawMaterialTypeForm
 )
 from app.utils import (
     create_excel_report, style_header_row, adjust_column_width,
@@ -80,6 +80,21 @@ def delete_allergen_type(id):
     db.session.commit()
     flash('Аллерген удален!', 'success')
     return redirect(url_for('allergen_types'))
+
+@app.route('/raw_material_types/edit/<int:id>', methods=['GET', 'POST'])
+@admin_required
+def edit_raw_material_type(id):
+    material_type = RawMaterialType.query.get_or_404(id)
+    form = EditRawMaterialTypeForm(obj=material_type)
+    
+    if form.validate_on_submit():
+        material_type.name = form.name.data
+        material_type.allergen_type_id = form.allergen_type_id.data if form.allergen_type_id.data != 0 else None
+        db.session.commit()
+        flash('Вид сырья обновлен!', 'success')
+        return redirect(url_for('raw_material_types'))
+    
+    return render_template('edit_raw_material_type.html', form=form, material_type=material_type)
 
 # --- Сырьё (партии) ---
 
