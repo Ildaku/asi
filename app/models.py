@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float, DateTime, Enum as SQLAlchemyEnum, Numeric
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float, DateTime, Enum as SQLAlchemyEnum, Numeric, Table
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from . import db
@@ -51,6 +51,14 @@ class User(db.Model, UserMixin):
     def is_operator(self):
         return self.role == UserRole.OPERATOR
 
+# Промежуточная таблица для many-to-many связи между видами сырья и аллергенами
+raw_material_type_allergens = Table(
+    'raw_material_type_allergens',
+    db.Model.metadata,
+    Column('raw_material_type_id', Integer, ForeignKey('raw_material_types.id'), primary_key=True),
+    Column('allergen_type_id', Integer, ForeignKey('allergen_types.id'), primary_key=True)
+)
+
 class AllergenType(db.Model):
     __tablename__ = "allergen_types"
     
@@ -59,18 +67,17 @@ class AllergenType(db.Model):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
-    raw_material_types = relationship("RawMaterialType", back_populates="allergen_type")
+    raw_material_types = relationship("RawMaterialType", secondary=raw_material_type_allergens, back_populates="allergens")
 
 class RawMaterialType(db.Model):
     __tablename__ = "raw_material_types"
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
-    allergen_type_id = Column(Integer, ForeignKey("allergen_types.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
-    allergen_type = relationship("AllergenType", back_populates="raw_material_types")
+    allergens = relationship("AllergenType", secondary=raw_material_type_allergens, back_populates="raw_material_types")
     raw_materials = relationship("RawMaterial", back_populates="type")
     recipe_items = relationship("RecipeItem", back_populates="material_type")
 
@@ -252,8 +259,8 @@ class ProductionPlan(db.Model):
         
         allergens = set()
         for ingredient in self.template.recipe_items:
-            if ingredient.material_type.allergen_type:
-                allergens.add(ingredient.material_type.allergen_type.name)
+            for allergen in ingredient.material_type.allergens:
+                allergens.add(allergen.name)
         
         return sorted(list(allergens))
 

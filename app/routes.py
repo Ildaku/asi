@@ -36,9 +36,16 @@ def index():
 def raw_material_types():
     form = RawMaterialTypeForm()
     if form.validate_on_submit():
-        allergen_id = form.allergen_type_id.data if form.allergen_type_id.data != 0 else None
-        t = RawMaterialType(name=form.name.data, allergen_type_id=allergen_id)
+        t = RawMaterialType(name=form.name.data)
         db.session.add(t)
+        db.session.flush()  # Получить ID
+        
+        # Добавить аллергены
+        for allergen_id in form.allergen_type_ids.data:
+            allergen = AllergenType.query.get(allergen_id)
+            if allergen:
+                t.allergens.append(allergen)
+        
         db.session.commit()
         flash('Вид сырья добавлен!', 'success')
         return redirect(url_for('raw_material_types'))
@@ -87,9 +94,22 @@ def edit_raw_material_type(id):
     material_type = RawMaterialType.query.get_or_404(id)
     form = EditRawMaterialTypeForm(obj=material_type)
     
+    # Устанавливаем выбранные аллергены
+    if request.method == 'GET':
+        form.allergen_type_ids.data = [a.id for a in material_type.allergens]
+    
     if form.validate_on_submit():
         material_type.name = form.name.data
-        material_type.allergen_type_id = form.allergen_type_id.data if form.allergen_type_id.data != 0 else None
+        
+        # Очистить существующие аллергены
+        material_type.allergens.clear()
+        
+        # Добавить новые аллергены
+        for allergen_id in form.allergen_type_ids.data:
+            allergen = AllergenType.query.get(allergen_id)
+            if allergen:
+                material_type.allergens.append(allergen)
+        
         db.session.commit()
         flash('Вид сырья обновлен!', 'success')
         return redirect(url_for('raw_material_types'))

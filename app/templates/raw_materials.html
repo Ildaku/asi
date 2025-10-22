@@ -55,8 +55,10 @@
           <tr>
             <td>{{ material.date_received.strftime('%d.%m.%Y') if material.date_received else 'N/A' }}</td>
             <td>
-              {% if material.type and material.type.allergen_type %}
-                <span class="badge bg-warning">{{ material.type.allergen_type.name }}</span>
+              {% if material.type and material.type.allergens %}
+                {% for allergen in material.type.allergens %}
+                  <span class="badge bg-warning me-1">{{ allergen.name }}</span>
+                {% endfor %}
               {% else %}
                 <span class="text-muted">Нет</span>
               {% endif %}
@@ -136,8 +138,10 @@
           <tr>
             <td>{{ material.date_received.strftime('%d.%m.%Y') if material.date_received else 'N/A' }}</td>
             <td>
-              {% if material.type and material.type.allergen_type %}
-                <span class="badge bg-warning">{{ material.type.allergen_type.name }}</span>
+              {% if material.type and material.type.allergens %}
+                {% for allergen in material.type.allergens %}
+                  <span class="badge bg-warning me-1">{{ allergen.name }}</span>
+                {% endfor %}
               {% else %}
                 <span class="text-muted">Нет</span>
               {% endif %}

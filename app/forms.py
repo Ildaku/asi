@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, FloatField, DateField, SubmitField, SelectField, TextAreaField, DecimalField, PasswordField
+from wtforms import StringField, FloatField, DateField, SubmitField, SelectField, SelectMultipleField, TextAreaField, DecimalField, PasswordField
 from wtforms.validators import DataRequired, NumberRange, ValidationError, Length, Optional, Email
 from .models import (
     RawMaterial, RecipeTemplate as Recipe, Product, RawMaterialType, RecipeItem as RecipeIngredient,
@@ -12,21 +12,21 @@ class AllergenTypeForm(FlaskForm):
 
 class RawMaterialTypeForm(FlaskForm):
     name = StringField('Название сырья', validators=[DataRequired()])
-    allergen_type_id = SelectField('Аллерген', coerce=int, validators=[Optional()])
+    allergen_type_ids = SelectMultipleField('Аллергены', coerce=int, validators=[Optional()])
     submit = SubmitField('Добавить вид сырья')
     
     def __init__(self, *args, **kwargs):
         super(RawMaterialTypeForm, self).__init__(*args, **kwargs)
-        self.allergen_type_id.choices = [(0, 'Нет аллергена')] + [(a.id, a.name) for a in AllergenType.query.all()]
+        self.allergen_type_ids.choices = [(a.id, a.name) for a in AllergenType.query.all()]
 
 class EditRawMaterialTypeForm(FlaskForm):
     name = StringField('Название сырья', validators=[DataRequired()])
-    allergen_type_id = SelectField('Аллерген', coerce=int, validators=[Optional()])
+    allergen_type_ids = SelectMultipleField('Аллергены', coerce=int, validators=[Optional()])
     submit = SubmitField('Сохранить изменения')
     
     def __init__(self, *args, **kwargs):
         super(EditRawMaterialTypeForm, self).__init__(*args, **kwargs)
-        self.allergen_type_id.choices = [(0, 'Нет аллергена')] + [(a.id, a.name) for a in AllergenType.query.all()]
+        self.allergen_type_ids.choices = [(a.id, a.name) for a in AllergenType.query.all()]
 
 class RawMaterialForm(FlaskForm):
     type_id = SelectField('Вид сырья', coerce=int, validators=[DataRequired()])

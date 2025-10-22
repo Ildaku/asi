@@ -33,11 +33,12 @@
                         {% endif %}
                     </div>
                     <div class="mb-3">
-                        {{ form.allergen_type_id.label(class="form-label") }}
-                        {{ form.allergen_type_id(class="form-select") }}
-                        {% if form.allergen_type_id.errors %}
+                        {{ form.allergen_type_ids.label(class="form-label") }}
+                        {{ form.allergen_type_ids(class="form-select", multiple=True, size="5") }}
+                        <div class="form-text">Удерживайте Ctrl (Cmd на Mac) для выбора нескольких аллергенов</div>
+                        {% if form.allergen_type_ids.errors %}
                             <div class="text-danger">
-                                {% for error in form.allergen_type_id.errors %}
+                                {% for error in form.allergen_type_ids.errors %}
                                     <small>{{ error }}</small>
                                 {% endfor %}
                             </div>

@@ -4,11 +4,16 @@
     <h1 class="mb-4">Добавить вид сырья</h1>
     <form method="POST" class="row g-3 mb-5">
         {{ form.hidden_tag() }}
-        <div class="col-md-8">
+        <div class="col-md-6">
             <label class="form-label">{{ form.name.label }}</label>
             {{ form.name(class="form-control", size=32) }}
         </div>
-        <div class="col-md-4 d-flex align-items-end">
+        <div class="col-md-4">
+            <label class="form-label">{{ form.allergen_type_ids.label }}</label>
+            {{ form.allergen_type_ids(class="form-select", multiple=True, size="3") }}
+            <div class="form-text">Удерживайте Ctrl для выбора нескольких</div>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
             {{ form.submit(class="btn btn-primary") }}
         </div>
     </form>
@@ -27,8 +32,10 @@
                 <tr>
                     <td>{{ t.name }}</td>
                     <td>
-                        {% if t.allergen_type %}
-                            <span class="badge bg-warning">{{ t.allergen_type.name }}</span>
+                        {% if t.allergens %}
+                            {% for allergen in t.allergens %}
+                                <span class="badge bg-warning me-1">{{ allergen.name }}</span>
+                            {% endfor %}
                         {% else %}
                             <span class="text-muted">Нет</span>
                         {% endif %}
