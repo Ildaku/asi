@@ -3,14 +3,14 @@ from flask import render_template, redirect, url_for, flash, request, jsonify, s
 from app import app, db
 from app.models import (
     RawMaterial, RecipeTemplate as Recipe, Product, RawMaterialType,
-    RecipeItem as RecipeIngredient, ProductionPlan, PlanStatus,
-    ProductionBatch, MaterialBatch, BatchMaterial, User, UserRole
+    RecipeItem as RecipeIngredient, RecipeItem, ProductionPlan, PlanStatus,
+    ProductionBatch, MaterialBatch, BatchMaterial, User, UserRole, AllergenType
 )
 from app.forms import (
     RawMaterialForm, ProductForm, RecipeForm, RecipeIngredientForm,
     RawMaterialTypeForm, ProductionPlanForm, ProductionBatchForm,
     ProductionStatusForm, BatchIngredientForm, RawMaterialUsageReportForm,
-    ProductionStatisticsForm, LoginForm
+    ProductionStatisticsForm, LoginForm, AllergenTypeForm
 )
 from app.utils import (
     create_excel_report, style_header_row, adjust_column_width,
@@ -36,7 +36,8 @@ def index():
 def raw_material_types():
     form = RawMaterialTypeForm()
     if form.validate_on_submit():
-        t = RawMaterialType(name=form.name.data)
+        allergen_id = form.allergen_type_id.data if form.allergen_type_id.data != 0 else None
+        t = RawMaterialType(name=form.name.data, allergen_type_id=allergen_id)
         db.session.add(t)
         db.session.commit()
         flash('Вид сырья добавлен!', 'success')
@@ -52,6 +53,33 @@ def delete_raw_material_type(id):
     db.session.commit()
     flash('Вид сырья удалён!', 'success')
     return redirect(url_for('raw_material_types'))
+
+# --- Управление аллергенами ---
+@app.route('/allergen_types', methods=['GET', 'POST'])
+@admin_required
+def allergen_types():
+    form = AllergenTypeForm()
+    if form.validate_on_submit():
+        a = AllergenType(name=form.name.data)
+        db.session.add(a)
+        db.session.commit()
+        flash('Аллерген добавлен!', 'success')
+        return redirect(url_for('allergen_types'))
+    allergens = AllergenType.query.all()
+    return render_template('allergen_types.html', form=form, allergens=allergens)
+
+@app.route('/allergen_types/delete/<int:id>', methods=['POST'])
+@admin_required
+def delete_allergen_type(id):
+    a = AllergenType.query.get_or_404(id)
+    # Проверяем, не используется ли аллерген в видах сырья
+    if RawMaterialType.query.filter_by(allergen_type_id=id).first():
+        flash('Нельзя удалить аллерген, который используется в видах сырья!', 'error')
+        return redirect(url_for('allergen_types'))
+    db.session.delete(a)
+    db.session.commit()
+    flash('Аллерген удален!', 'success')
+    return redirect(url_for('allergen_types'))
 
 # --- Сырьё (партии) ---
 

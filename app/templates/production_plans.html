@@ -65,6 +65,7 @@
             <thead>
                 <tr>
                     <th>Дата</th>
+                    <th>Аллергены</th>
                     <th>Продукт</th>
                     <th>Рецептура</th>
                     <th>Партия</th>
@@ -78,6 +79,16 @@
                 {% for plan in plans %}
                 <tr>
                     <td>{{ plan.created_at.strftime('%d.%m.%Y') }}</td>
+                    <td>
+                        {% set allergens = plan.get_allergens() %}
+                        {% if allergens %}
+                            {% for allergen in allergens %}
+                                <span class="badge bg-warning me-1">{{ allergen }}</span>
+                            {% endfor %}
+                        {% else %}
+                            <span class="text-muted">Нет</span>
+                        {% endif %}
+                    </td>
                     <td>{{ plan.product.name }}</td>
                     <td>{{ plan.template.name if plan.template else 'Рецептура удалена' }}</td>
                     <td>{{ plan.batch_number }}</td>

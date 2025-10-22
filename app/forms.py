@@ -3,12 +3,21 @@ from wtforms import StringField, FloatField, DateField, SubmitField, SelectField
 from wtforms.validators import DataRequired, NumberRange, ValidationError, Length, Optional, Email
 from .models import (
     RawMaterial, RecipeTemplate as Recipe, Product, RawMaterialType, RecipeItem as RecipeIngredient,
-    ProductionPlan, PlanStatus, User, UserRole
+    ProductionPlan, PlanStatus, User, UserRole, AllergenType
 )
+
+class AllergenTypeForm(FlaskForm):
+    name = StringField('Название аллергена', validators=[DataRequired()])
+    submit = SubmitField('Добавить аллерген')
 
 class RawMaterialTypeForm(FlaskForm):
     name = StringField('Название сырья', validators=[DataRequired()])
+    allergen_type_id = SelectField('Аллерген', coerce=int, validators=[Optional()])
     submit = SubmitField('Добавить вид сырья')
+    
+    def __init__(self, *args, **kwargs):
+        super(RawMaterialTypeForm, self).__init__(*args, **kwargs)
+        self.allergen_type_id.choices = [(0, 'Нет аллергена')] + [(a.id, a.name) for a in AllergenType.query.all()]
 
 class RawMaterialForm(FlaskForm):
     type_id = SelectField('Вид сырья', coerce=int, validators=[DataRequired()])

@@ -51,14 +51,26 @@ class User(db.Model, UserMixin):
     def is_operator(self):
         return self.role == UserRole.OPERATOR
 
-class RawMaterialType(db.Model):
-    __tablename__ = "raw_material_types"
+class AllergenType(db.Model):
+    __tablename__ = "allergen_types"
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
+    raw_material_types = relationship("RawMaterialType", back_populates="allergen_type")
+
+class RawMaterialType(db.Model):
+    __tablename__ = "raw_material_types"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)
+    allergen_type_id = Column(Integer, ForeignKey("allergen_types.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    allergen_type = relationship("AllergenType", back_populates="raw_material_types")
     raw_materials = relationship("RawMaterial", back_populates="type")
     recipe_items = relationship("RecipeItem", back_populates="material_type")
 
@@ -228,6 +240,22 @@ class ProductionPlan(db.Model):
                 result['available'] = False
                 
         return result
+
+    def get_allergens(self):
+        """Возвращает список аллергенов, присутствующих в плане производства
+        
+        Returns:
+            list: Список уникальных аллергенов из используемого сырья
+        """
+        if not self.template or not self.template.recipe_items:
+            return []
+        
+        allergens = set()
+        for ingredient in self.template.recipe_items:
+            if ingredient.material_type.allergen_type:
+                allergens.add(ingredient.material_type.allergen_type.name)
+        
+        return sorted(list(allergens))
 
 class ProductionBatch(db.Model):
     __tablename__ = "production_batches"

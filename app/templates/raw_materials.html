@@ -42,6 +42,7 @@
         <thead>
           <tr>
             <th>Дата поступления</th>
+            <th>Аллерген</th>
             <th>Вид сырья</th>
             <th>Партия</th>
             <th>Количество (кг)</th>
@@ -53,6 +54,13 @@
           {% for material in materials %}
           <tr>
             <td>{{ material.date_received.strftime('%d.%m.%Y') if material.date_received else 'N/A' }}</td>
+            <td>
+              {% if material.type and material.type.allergen_type %}
+                <span class="badge bg-warning">{{ material.type.allergen_type.name }}</span>
+              {% else %}
+                <span class="text-muted">Нет</span>
+              {% endif %}
+            </td>
             <td>{{ material.type.name if material.type else 'N/A' }}</td>
             <td>{{ material.batch_number or 'N/A' }}</td>
             <td>{{ "%.2f"|format(material.quantity_kg) if material.quantity_kg is not none else '0.00' }} кг</td>
@@ -115,6 +123,7 @@
         <thead>
           <tr>
             <th>Дата поступления</th>
+            <th>Аллерген</th>
             <th>Вид сырья</th>
             <th>Партия</th>
             <th>Количество (кг)</th>
@@ -126,6 +135,13 @@
           {% for material in used_up_materials %}
           <tr>
             <td>{{ material.date_received.strftime('%d.%m.%Y') if material.date_received else 'N/A' }}</td>
+            <td>
+              {% if material.type and material.type.allergen_type %}
+                <span class="badge bg-warning">{{ material.type.allergen_type.name }}</span>
+              {% else %}
+                <span class="text-muted">Нет</span>
+              {% endif %}
+            </td>
             <td>{{ material.type.name if material.type else 'N/A' }}</td>
             <td>{{ material.batch_number or 'N/A' }}</td>
             <td>0.00 кг</td>
