@@ -619,7 +619,7 @@ def update_plan_status(plan_id):
                 if old_date:
                     date_note = f"[{timestamp}] Дата производства изменена: {old_date.strftime('%d.%m.%Y')} → {plan.production_date.strftime('%d.%m.%Y')}"
                 else:
-                    date_note = f"[{timestamp}] Дата производства изменена: {old_date.strftime('%d.%m.%Y')} → {plan.production_date.strftime('%d.%m.%Y')}"
+                    date_note = f"[{timestamp}] Дата производства установлена: {plan.production_date.strftime('%d.%m.%Y')}"
                 
                 if plan.notes:
                     plan.notes = date_note + "\n\n" + plan.notes
