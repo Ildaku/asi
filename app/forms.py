@@ -3,7 +3,7 @@ from wtforms import StringField, FloatField, DateField, SubmitField, SelectField
 from wtforms.validators import DataRequired, NumberRange, ValidationError, Length, Optional, Email
 from .models import (
     RawMaterial, RecipeTemplate as Recipe, Product, RawMaterialType, RecipeItem as RecipeIngredient,
-    ProductionPlan, PlanStatus, User, UserRole, AllergenType
+    ProductionPlan, PlanStatus, User, UserRole, AllergenType, MonthlyPlan
 )
 
 class AllergenTypeForm(FlaskForm):
@@ -213,4 +213,69 @@ class CreateUserForm(FlaskForm):
 
     def validate_email(self, field):
         if User.query.filter_by(email=field.data).first():
-            raise ValidationError('Пользователь с таким email уже существует.') 
+            raise ValidationError('Пользователь с таким email уже существует.')
+
+class MonthlyPlanForm(FlaskForm):
+    year = SelectField('Год', coerce=int, validators=[DataRequired()])
+    month = SelectField('Месяц', coerce=int, validators=[DataRequired()])
+    product_id = SelectField('Продукт', coerce=int, validators=[DataRequired()])
+    template_id = SelectField('Рецептура', coerce=int, validators=[DataRequired()])
+    quantity_kg = FloatField('Количество (кг)', validators=[
+        DataRequired(),
+        NumberRange(min=0.01, message='Количество должно быть больше 0')
+    ])
+    submit = SubmitField('Сохранить план')
+    
+    def __init__(self, *args, **kwargs):
+        super(MonthlyPlanForm, self).__init__(*args, **kwargs)
+        # Заполняем годы (текущий и следующие 3 года)
+        from datetime import datetime
+        current_year = datetime.now().year
+        self.year.choices = [(y, str(y)) for y in range(current_year, current_year + 4)]
+        
+        # Месяцы
+        month_names = [
+            'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+            'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+        ]
+        self.month.choices = [(i, month_names[i-1]) for i in range(1, 13)]
+        
+        # Продукты
+        self.product_id.choices = [(p.id, p.name) for p in Product.query.all()]
+        
+        # Рецептуры
+        # Проверяем, есть ли уже выбранный продукт (для режима редактирования)
+        product_id = None
+        if 'obj' in kwargs and kwargs['obj']:
+            product_id = kwargs['obj'].product_id
+        elif self.product_id.data:
+            product_id = self.product_id.data
+        
+        if product_id:
+            recipes = Recipe.query.filter_by(product_id=product_id, status='saved').all()
+            self.template_id.choices = [(r.id, r.name) for r in recipes] if recipes else [(0, 'Нет сохранённых рецептур')]
+        else:
+            # В режиме создания рецептуры загружаются через JavaScript
+            self.template_id.choices = [(0, 'Выберите продукт сначала')]
+    
+    def validate_template_id(self, field):
+        if field.data:
+            recipe = Recipe.query.get(field.data)
+            if not recipe:
+                raise ValidationError('Выбранная рецептура не существует.')
+            if recipe.status != 'saved':
+                raise ValidationError('Можно использовать только сохраненные рецептуры.')
+    
+    def validate_quantity(self, field):
+        if field.data and field.data <= 0:
+            raise ValidationError('Количество должно быть положительным числом.')
+    
+    def validate_product_id(self, field):
+        if field.data and self.year.data and self.month.data:
+            existing = MonthlyPlan.query.filter_by(
+                year=self.year.data,
+                month=self.month.data,
+                product_id=field.data
+            ).first()
+            if existing and (not hasattr(self, '_edit_plan') or existing.id != self._edit_plan.id):
+                raise ValidationError('План для этого продукта в указанном месяце уже существует.') 

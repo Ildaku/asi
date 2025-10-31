@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% block title %}Планирование на {{ month_name }} {{ year }} | Planner2{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Главная</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('yearly_planning') }}">Годовое планирование</a></li>
+        <li class="breadcrumb-item active">{{ month_name }} {{ year }}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Планирование на {{ month_name }} {{ year }}</h1>
+    <a href="{{ url_for('yearly_planning', year=year) }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Назад к годовому планированию
+    </a>
+</div>
+
+<!-- Форма добавления плана (только для администратора) -->
+{% if current_user.is_admin() and form %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Добавить план</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('add_monthly_plan', year=year, month=month) }}">
+            {{ form.hidden_tag() }}
+            <div class="row g-3">
+                <div class="col-md-4">
+                    {{ form.product_id.label(class="form-label") }}
+                    {{ form.product_id(class="form-select", id="product_select") }}
+                </div>
+                <div class="col-md-4">
+                    {{ form.template_id.label(class="form-label") }}
+                    {{ form.template_id(class="form-select", id="template_select") }}
+                </div>
+                <div class="col-md-2">
+                    {{ form.quantity_kg.label(class="form-label") }}
+                    {{ form.quantity_kg(class="form-control") }}
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    {{ form.submit(class="btn btn-primary w-100") }}
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- Таблица планов -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Планы производства</h5>
+    </div>
+    <div class="card-body">
+        {% if plans %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Продукт</th>
+                        <th>Рецептура</th>
+                        <th>Количество (кг)</th>
+                        {% if current_user.is_admin() %}
+                        <th>Действия</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for plan in plans %}
+                    <tr>
+                        <td>{{ plan.product.name }}</td>
+                        <td>{{ plan.template.name }}</td>
+                        <td>{{ "%.2f"|format(plan.quantity_kg) }} кг</td>
+                        {% if current_user.is_admin() %}
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('edit_monthly_plan', plan_id=plan.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit"></i> Редактировать
+                                </a>
+                                <form action="{{ url_for('delete_monthly_plan', plan_id=plan.id) }}" 
+                                      method="POST" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                            onclick="return confirm('Удалить план?');">
+                                        <i class="fas fa-trash"></i> Удалить
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted">Нет планов для этого месяца</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Потребность в сырье -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Потребность в сырье для закупки</h5>
+    </div>
+    <div class="card-body">
+        {% if material_types_info %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Вид сырья</th>
+                        <th>Количество (кг)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for material_type_id, info in material_types_info.items() | sort(attribute='1.type.name') %}
+                    <tr>
+                        <td>{{ info.type.name }}</td>
+                        <td>{{ "%.2f"|format(info.quantity_kg) }} кг</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted">Нет данных для расчёта потребности в сырье</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if current_user.is_admin() and form %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const productSelect = document.getElementById('product_select');
+    const templateSelect = document.getElementById('template_select');
+    
+    productSelect.addEventListener('change', function() {
+        const productId = this.value;
+        if (productId) {
+            fetch(`/yearly_planning/${productId}/recipes`)
+                .then(response => response.json())
+                .then(data => {
+                    templateSelect.innerHTML = '<option value="">Выберите рецептуру</option>';
+                    data.forEach(recipe => {
+                        const option = document.createElement('option');
+                        option.value = recipe.id;
+                        option.textContent = recipe.name;
+                        templateSelect.appendChild(option);
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        } else {
+            templateSelect.innerHTML = '<option value="">Выберите рецептуру</option>';
+        }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

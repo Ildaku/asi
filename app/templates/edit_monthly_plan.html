@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% block title %}Редактировать месячный план | Planner2{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Главная</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('yearly_planning') }}">Годовое планирование</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('monthly_planning', year=plan.year, month=plan.month) }}">Месячный план</a></li>
+        <li class="breadcrumb-item active">Редактировать</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title mb-0">Редактировать месячный план</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.year.label(class="form-label") }}
+                        {{ form.year(class="form-select") }}
+                        {% if form.year.errors %}
+                            <div class="text-danger">
+                                {% for error in form.year.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.month.label(class="form-label") }}
+                        {{ form.month(class="form-select") }}
+                        {% if form.month.errors %}
+                            <div class="text-danger">
+                                {% for error in form.month.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.product_id.label(class="form-label") }}
+                        {{ form.product_id(class="form-select", id="product_select") }}
+                        {% if form.product_id.errors %}
+                            <div class="text-danger">
+                                {% for error in form.product_id.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.template_id.label(class="form-label") }}
+                        {{ form.template_id(class="form-select", id="template_select") }}
+                        {% if form.template_id.errors %}
+                            <div class="text-danger">
+                                {% for error in form.template_id.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.quantity_kg.label(class="form-label") }}
+                        {{ form.quantity_kg(class="form-control") }}
+                        {% if form.quantity_kg.errors %}
+                            <div class="text-danger">
+                                {% for error in form.quantity_kg.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Сохранить изменения
+                        </button>
+                        <a href="{{ url_for('monthly_planning', year=plan.year, month=plan.month) }}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Отмена
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const productSelect = document.getElementById('product_select');
+    const templateSelect = document.getElementById('template_select');
+    
+    productSelect.addEventListener('change', function() {
+        const productId = this.value;
+        if (productId) {
+            fetch(`/yearly_planning/${productId}/recipes`)
+                .then(response => response.json())
+                .then(data => {
+                    templateSelect.innerHTML = '<option value="">Выберите рецептуру</option>';
+                    data.forEach(recipe => {
+                        const option = document.createElement('option');
+                        option.value = recipe.id;
+                        option.textContent = recipe.name;
+                        if (option.value == '{{ form.template_id.data }}') {
+                            option.selected = true;
+                        }
+                        templateSelect.appendChild(option);
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        } else {
+            templateSelect.innerHTML = '<option value="">Выберите рецептуру</option>';
+        }
+    });
+    
+    // Загружаем рецептуры для уже выбранного продукта при загрузке страницы
+    if (productSelect.value) {
+        productSelect.dispatchEvent(new Event('change'));
+    }
+});
+</script>
+{% endblock %}

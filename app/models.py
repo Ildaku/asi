@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float, DateTime, Enum as SQLAlchemyEnum, Numeric, Table
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float, DateTime, Enum as SQLAlchemyEnum, Numeric, Table, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from . import db
@@ -290,4 +290,44 @@ class BatchMaterial(db.Model):
     created_by = Column(Integer, ForeignKey("users.id"))
 
     batch = relationship("ProductionBatch", back_populates="materials")
-    material_batch = relationship("MaterialBatch", back_populates="batch_materials") 
+    material_batch = relationship("MaterialBatch", back_populates="batch_materials")
+
+class MonthlyPlan(db.Model):
+    __tablename__ = "monthly_plans"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    year = Column(Integer, nullable=False)
+    month = Column(Integer, nullable=False)  # 1-12
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    template_id = Column(Integer, ForeignKey("recipe_templates.id"), nullable=False)
+    quantity_kg = Column(Float, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    product = relationship("Product", backref="monthly_plans")
+    template = relationship("RecipeTemplate", backref="monthly_plans")
+    
+    __table_args__ = (
+        UniqueConstraint('year', 'month', 'product_id', name='unique_monthly_plan'),
+    )
+    
+    def calculate_raw_material_needs(self):
+        """Рассчитывает потребность в сырье для данного месячного плана
+        
+        Returns:
+            dict: Словарь {material_type_id: quantity_kg}
+        """
+        if not self.template or not self.template.recipe_items:
+            return {}
+        
+        needs = {}
+        for ingredient in self.template.recipe_items:
+            material_type_id = ingredient.material_type_id
+            needed_quantity = (self.quantity_kg * float(ingredient.percentage)) / 100
+            
+            if material_type_id in needs:
+                needs[material_type_id] += needed_quantity
+            else:
+                needs[material_type_id] = needed_quantity
+        
+        return needs 

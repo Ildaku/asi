@@ -4,13 +4,13 @@ from app import app, db
 from app.models import (
     RawMaterial, RecipeTemplate as Recipe, Product, RawMaterialType,
     RecipeItem as RecipeIngredient, RecipeItem, ProductionPlan, PlanStatus,
-    ProductionBatch, MaterialBatch, BatchMaterial, User, UserRole, AllergenType
+    ProductionBatch, MaterialBatch, BatchMaterial, User, UserRole, AllergenType, MonthlyPlan
 )
 from app.forms import (
     RawMaterialForm, ProductForm, RecipeForm, RecipeIngredientForm,
     RawMaterialTypeForm, ProductionPlanForm, ProductionBatchForm,
     ProductionStatusForm, BatchIngredientForm, RawMaterialUsageReportForm,
-    ProductionStatisticsForm, LoginForm, AllergenTypeForm, EditRawMaterialTypeForm
+    ProductionStatisticsForm, LoginForm, AllergenTypeForm, EditRawMaterialTypeForm, MonthlyPlanForm
 )
 from app.utils import (
     create_excel_report, style_header_row, adjust_column_width,
@@ -1875,6 +1875,252 @@ def logout():
     logout_user()
     flash('Вы вышли из системы.', 'info')
     return redirect(url_for('login'))
+
+# --- Годовое планирование ---
+@app.route('/yearly_planning')
+@login_required
+def yearly_planning():
+    """Главная страница годового планирования"""
+    year = request.args.get('year', type=int)
+    if not year:
+        year = datetime.now().year
+    
+    # Получаем количество планов по месяцам
+    monthly_counts = {}
+    for month in range(1, 13):
+        count = MonthlyPlan.query.filter_by(year=year, month=month).count()
+        monthly_counts[month] = count
+    
+    from datetime import datetime as dt
+    return render_template('yearly_planning.html', year=year, monthly_counts=monthly_counts, datetime=dt)
+
+@app.route('/yearly_planning/<int:year>/<int:month>')
+@login_required
+def monthly_planning(year, month):
+    """Страница планирования для конкретного месяца"""
+    if month < 1 or month > 12:
+        flash('Некорректный месяц', 'error')
+        return redirect(url_for('yearly_planning'))
+    
+    month_names = [
+        'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+        'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+    ]
+    
+    plans = MonthlyPlan.query.filter_by(year=year, month=month).all()
+    
+    # Рассчитываем потребность в сырье для месяца
+    raw_material_needs = {}
+    for plan in plans:
+        plan_needs = plan.calculate_raw_material_needs()
+        for material_type_id, quantity in plan_needs.items():
+            if material_type_id in raw_material_needs:
+                raw_material_needs[material_type_id] += quantity
+            else:
+                raw_material_needs[material_type_id] = quantity
+    
+    # Получаем информацию о видах сырья
+    material_types_info = {}
+    for material_type_id, quantity in raw_material_needs.items():
+        material_type = RawMaterialType.query.get(material_type_id)
+        if material_type:
+            material_types_info[material_type_id] = {
+                'type': material_type,
+                'quantity_kg': round(quantity, 2)
+            }
+    
+    form = None
+    if current_user.is_admin():
+        form = MonthlyPlanForm()
+        form.year.data = year
+        form.month.data = month
+    
+    return render_template(
+        'monthly_planning.html',
+        year=year,
+        month=month,
+        month_name=month_names[month-1],
+        plans=plans,
+        material_types_info=material_types_info,
+        form=form
+    )
+
+@app.route('/yearly_planning/<int:year>/<int:month>/add', methods=['POST'])
+@admin_required
+def add_monthly_plan(year, month):
+    """Добавление плана для месяца"""
+    if month < 1 or month > 12:
+        flash('Некорректный месяц', 'error')
+        return redirect(url_for('yearly_planning', year=year))
+    
+    form = MonthlyPlanForm()
+    form.year.data = year
+    form.month.data = month
+    
+    if form.validate_on_submit():
+        # Проверяем уникальность продукта в месяце
+        existing = MonthlyPlan.query.filter_by(
+            year=year,
+            month=month,
+            product_id=form.product_id.data
+        ).first()
+        
+        if existing:
+            flash('План для этого продукта в указанном месяце уже существует', 'error')
+            return redirect(url_for('monthly_planning', year=year, month=month))
+        
+        plan = MonthlyPlan(
+            year=year,
+            month=month,
+            product_id=form.product_id.data,
+            template_id=form.template_id.data,
+            quantity_kg=form.quantity_kg.data
+        )
+        
+        db.session.add(plan)
+        db.session.commit()
+        flash('План добавлен!', 'success')
+    
+    return redirect(url_for('monthly_planning', year=year, month=month))
+
+@app.route('/yearly_planning/<int:plan_id>/edit', methods=['GET', 'POST'])
+@admin_required
+def edit_monthly_plan(plan_id):
+    """Редактирование месячного плана"""
+    plan = MonthlyPlan.query.get_or_404(plan_id)
+    form = MonthlyPlanForm(obj=plan)
+    form._edit_plan = plan  # Для валидации
+    
+    if form.validate_on_submit():
+        plan.year = form.year.data
+        plan.month = form.month.data
+        plan.product_id = form.product_id.data
+        plan.template_id = form.template_id.data
+        plan.quantity_kg = form.quantity_kg.data
+        
+        db.session.commit()
+        flash('План обновлен!', 'success')
+        return redirect(url_for('monthly_planning', year=plan.year, month=plan.month))
+    
+    return render_template('edit_monthly_plan.html', form=form, plan=plan)
+
+@app.route('/yearly_planning/<int:plan_id>/delete', methods=['POST'])
+@admin_required
+def delete_monthly_plan(plan_id):
+    """Удаление месячного плана"""
+    plan = MonthlyPlan.query.get_or_404(plan_id)
+    year = plan.year
+    month = plan.month
+    
+    db.session.delete(plan)
+    db.session.commit()
+    flash('План удален!', 'success')
+    
+    return redirect(url_for('monthly_planning', year=year, month=month))
+
+@app.route('/yearly_planning/<int:year>/export')
+@admin_required
+def export_yearly_plan(year):
+    """Экспорт годового плана в Excel"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill
+    from io import BytesIO
+    
+    wb = Workbook()
+    
+    month_names = [
+        'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+        'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+    ]
+    
+    # Удаляем дефолтный лист
+    if 'Sheet' in wb.sheetnames:
+        wb.remove(wb['Sheet'])
+    
+    for month in range(1, 13):
+        # Создаём лист для месяца
+        ws = wb.create_sheet(title=month_names[month-1])
+        
+        # Получаем планы за месяц
+        plans = MonthlyPlan.query.filter_by(year=year, month=month).all()
+        
+        # Рассчитываем потребность в сырье
+        raw_material_needs = {}
+        for plan in plans:
+            plan_needs = plan.calculate_raw_material_needs()
+            for material_type_id, quantity in plan_needs.items():
+                if material_type_id in raw_material_needs:
+                    raw_material_needs[material_type_id] += quantity
+                else:
+                    raw_material_needs[material_type_id] = quantity
+        
+        # Заголовки
+        ws['A1'] = 'Вид сырья'
+        ws['B1'] = 'Количество (кг)'
+        
+        # Стили для заголовков
+        header_fill = PatternFill(start_color="174FA3", end_color="174FA3", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=12)
+        
+        for cell in ws[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+        
+        # Данные
+        row = 2
+        if raw_material_needs:
+            # Сортируем по названию вида сырья
+            material_types = []
+            for material_type_id, quantity in raw_material_needs.items():
+                material_type = RawMaterialType.query.get(material_type_id)
+                if material_type:
+                    material_types.append((material_type.name, round(quantity, 2)))
+            
+            material_types.sort(key=lambda x: x[0])
+            
+            for material_name, quantity in material_types:
+                ws[f'A{row}'] = material_name
+                ws[f'B{row}'] = quantity
+                row += 1
+        else:
+            ws['A2'] = 'Нет данных'
+            ws['B2'] = 0
+        
+        # Настраиваем ширину столбцов
+        ws.column_dimensions['A'].width = 30
+        ws.column_dimensions['B'].width = 20
+        
+        # Центрирование чисел
+        for cell in ws[f'B2:B{row-1}']:
+            for c in cell:
+                c.alignment = Alignment(horizontal='right')
+    
+    # Сохраняем в BytesIO
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    filename = f"yearly_plan_{year}.xlsx"
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
+@app.route('/yearly_planning/<int:product_id>/recipes')
+@login_required
+def get_recipes_for_product(product_id):
+    """API для получения рецептур продукта (для динамического обновления формы)"""
+    product = Product.query.get_or_404(product_id)
+    recipes = Recipe.query.filter_by(product_id=product_id, status='saved').all()
+    
+    return jsonify([{
+        'id': recipe.id,
+        'name': recipe.name
+    } for recipe in recipes])
 
 @app.errorhandler(404)
 def page_not_found(e):

@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}Годовое планирование | Planner2{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Главная</a></li>
+        <li class="breadcrumb-item active">Годовое планирование</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Годовое планирование</h1>
+    {% if current_user.is_admin() %}
+    <a href="{{ url_for('export_yearly_plan', year=year) }}" class="btn btn-success">
+        <i class="fas fa-file-excel"></i> Экспорт в Excel
+    </a>
+    {% endif %}
+</div>
+
+<!-- Выбор года -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('yearly_planning') }}" class="d-inline-flex align-items-center gap-2">
+            <label for="year" class="form-label mb-0">Выберите год:</label>
+            <select name="year" id="year" class="form-select" style="width: auto;" onchange="this.form.submit()">
+                {% for y in range(datetime.now().year, datetime.now().year + 4) %}
+                <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+</div>
+
+<!-- Сетка месяцев -->
+<div class="row g-3">
+    {% set month_names = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 
+                          'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'] %}
+    {% for month in range(1, 13) %}
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title">{{ month_names[month-1] }}</h5>
+                <p class="card-text">
+                    <span class="badge bg-primary">{{ monthly_counts[month] }} планов</span>
+                </p>
+                <a href="{{ url_for('monthly_planning', year=year, month=month) }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-eye"></i> Просмотр
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
