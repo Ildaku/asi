@@ -1454,9 +1454,17 @@ def export_production_statistics():
                     ws.append(batch_info) # Добавляем инфо о плане и замесе, если нет ингредиентов
                 else:
                     for material in batch.materials:
+                        # Безопасная проверка на удалённое сырьё
+                        if material.material_batch and material.material_batch.material and material.material_batch.material.type:
+                            material_name = material.material_batch.material.type.name
+                            batch_number = material.material_batch.batch_number or "N/A"
+                        else:
+                            material_name = "Удалено"
+                            batch_number = "N/A"
+                        
                         material_info = batch_info + [
-                            material.material_batch.material.type.name,
-                            material.material_batch.batch_number,
+                            material_name,
+                            batch_number,
                             material.quantity
                         ]
                         ws.append(material_info)
