@@ -271,6 +271,7 @@ class ProductionBatch(db.Model):
     plan_id = Column(Integer, ForeignKey("production_plans.id"))
     batch_number = Column(String)
     weight = Column(Float)
+    production_date = Column(DateTime(timezone=True), nullable=True)  # Реальная дата производства замеса
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     created_by = Column(Integer, ForeignKey("users.id"))

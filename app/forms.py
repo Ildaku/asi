@@ -167,6 +167,10 @@ class ProductionBatchForm(FlaskForm):
     ])
     submit = SubmitField('Добавить замес')
 
+class EditBatchProductionDateForm(FlaskForm):
+    production_date = DateField('Дата производства', format='%Y-%m-%d', validators=[Optional()])
+    submit = SubmitField('Сохранить дату')
+
 class BatchIngredientForm(FlaskForm):
     raw_material_id = SelectField('Партия сырья', coerce=int)
     quantity = FloatField('Количество (кг)', validators=[DataRequired()])

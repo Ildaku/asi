@@ -77,7 +77,7 @@
                                                 <tr>
                                                     <th>Номер замеса</th>
                                                     <th>Вес (кг)</th>
-                                                    <th>Дата создания</th>
+                                                    <th>Дата производства</th>
                                                     <th>Ингредиенты</th>
                                                 </tr>
                                             </thead>
@@ -86,7 +86,13 @@
                                                 <tr class="align-middle">
                                                     <td>{{ batch.batch_number }}</td>
                                                     <td>{{ "%.2f"|format(batch.weight) }} кг</td>
-                                                    <td>{{ batch.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                                                    <td>
+                                                        {% if batch.production_date %}
+                                                            {{ batch.production_date.strftime('%d.%m.%Y') }}
+                                                        {% else %}
+                                                            <span class="text-muted">Не указана</span>
+                                                        {% endif %}
+                                                    </td>
                                                     <td>
                                                         {% if batch.materials %}
                                                         <button class="btn btn-sm btn-outline-info py-0 px-1" type="button" data-bs-toggle="collapse" data-bs-target="#materials-{{ batch.id }}">

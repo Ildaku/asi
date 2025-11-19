@@ -10,7 +10,7 @@ from app.forms import (
     RawMaterialForm, ProductForm, RecipeForm, RecipeIngredientForm,
     RawMaterialTypeForm, ProductionPlanForm, ProductionBatchForm,
     ProductionStatusForm, BatchIngredientForm, RawMaterialUsageReportForm,
-    ProductionStatisticsForm, LoginForm, AllergenTypeForm, EditRawMaterialTypeForm, MonthlyPlanForm
+    ProductionStatisticsForm, LoginForm, AllergenTypeForm, EditRawMaterialTypeForm, MonthlyPlanForm, EditBatchProductionDateForm
 )
 from app.utils import (
     create_excel_report, style_header_row, adjust_column_width,
@@ -735,7 +735,8 @@ def add_batch(plan_id):
         batch = ProductionBatch(
             plan=plan,
             batch_number=form.batch_number.data,
-            weight=form.quantity.data
+            weight=form.quantity.data,
+            production_date=datetime.now()  # Автоматически устанавливаем текущую дату
         )
         db.session.add(batch)
         db.session.flush()  # Получаем ID замеса
@@ -983,6 +984,34 @@ def delete_batch(batch_id):
     db.session.commit()
     flash('Замес удалён!', 'success')
     return redirect(url_for('production_plan_detail', plan_id=plan.id))
+
+@app.route('/batches/<int:batch_id>/edit_production_date', methods=['GET', 'POST'])
+@admin_required
+def edit_batch_production_date(batch_id):
+    """Редактирование даты производства замеса (только для администраторов, только для завершённых планов)"""
+    batch = ProductionBatch.query.get_or_404(batch_id)
+    plan = batch.plan
+    
+    # Проверяем, что план завершён
+    if plan.status != PlanStatus.COMPLETED:
+        flash('Дату производства можно редактировать только для завершённых планов', 'error')
+        return redirect(url_for('production_plan_detail', plan_id=plan.id))
+    
+    form = EditBatchProductionDateForm(obj=batch)
+    
+    if form.validate_on_submit():
+        if form.production_date.data:
+            # Преобразуем date в datetime с временем (полночь)
+            from datetime import time
+            batch.production_date = datetime.combine(form.production_date.data, time())
+        else:
+            batch.production_date = None
+        
+        db.session.commit()
+        flash('Дата производства замеса обновлена!', 'success')
+        return redirect(url_for('production_plan_detail', plan_id=plan.id))
+    
+    return render_template('edit_batch_production_date.html', form=form, batch=batch, plan=plan)
 
 @app.route('/batch_ingredients/delete/<int:ingredient_id>', methods=['POST'])
 @login_required
@@ -1410,7 +1439,7 @@ def export_production_statistics():
     # Заголовки
     headers = [
         "Дата плана", "Продукт", "Рецептура", "План №", "Статус плана", "Плановое кол-во (кг)",
-        "Замес №", "Вес замеса (кг)",
+        "Замес №", "Вес замеса (кг)", "Дата производства замеса",
         "Сырье", "Партия сырья", "Кол-во сырья (кг)"
     ]
     ws.append(headers)
@@ -1446,9 +1475,11 @@ def export_production_statistics():
             ws.append(plan_info) # Добавляем только информацию о плане, если нет замесов
         else:
             for batch in plan.batches:
+                batch_production_date = batch.production_date.strftime("%Y-%m-%d") if batch.production_date else "Не указана"
                 batch_info = plan_info + [
                     batch.batch_number,
-                    batch.weight
+                    batch.weight,
+                    batch_production_date
                 ]
                 if not batch.materials:
                     ws.append(batch_info) # Добавляем инфо о плане и замесе, если нет ингредиентов
@@ -1737,7 +1768,8 @@ def add_multiple_batches(plan_id):
             batch = ProductionBatch(
                 plan=plan,
                 batch_number=batch_number,
-                weight=weight_per_batch
+                weight=weight_per_batch,
+                production_date=datetime.now()  # Автоматически устанавливаем текущую дату
             )
             db.session.add(batch)
             db.session.flush()  # Получаем ID замеса
