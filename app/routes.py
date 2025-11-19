@@ -986,15 +986,20 @@ def delete_batch(batch_id):
     return redirect(url_for('production_plan_detail', plan_id=plan.id))
 
 @app.route('/batches/<int:batch_id>/edit_production_date', methods=['GET', 'POST'])
-@admin_required
+@login_required
 def edit_batch_production_date(batch_id):
-    """Редактирование даты производства замеса (только для администраторов, только для завершённых планов)"""
+    """Редактирование даты производства замеса"""
     batch = ProductionBatch.query.get_or_404(batch_id)
     plan = batch.plan
     
-    # Проверяем, что план завершён
-    if plan.status != PlanStatus.COMPLETED:
-        flash('Дату производства можно редактировать только для завершённых планов', 'error')
+    # Проверяем, что план в производстве или завершён
+    if plan.status not in [PlanStatus.IN_PROGRESS, PlanStatus.COMPLETED]:
+        flash('Дату производства можно редактировать только для планов в производстве или завершённых', 'error')
+        return redirect(url_for('production_plan_detail', plan_id=plan.id))
+    
+    # Для завершённых планов редактирование доступно только администраторам
+    if plan.status == PlanStatus.COMPLETED and not current_user.is_admin():
+        flash('Дату производства завершённых планов могут редактировать только администраторы', 'error')
         return redirect(url_for('production_plan_detail', plan_id=plan.id))
     
     form = EditBatchProductionDateForm(obj=batch)
