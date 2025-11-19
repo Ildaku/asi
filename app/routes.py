@@ -2027,7 +2027,7 @@ def delete_monthly_plan(plan_id):
     return redirect(url_for('monthly_planning', year=year, month=month))
 
 @app.route('/yearly_planning/<int:year>/export')
-@admin_required
+@login_required
 def export_yearly_plan(year):
     """Экспорт годового плана в Excel"""
     from openpyxl import Workbook

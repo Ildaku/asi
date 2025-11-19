@@ -13,11 +13,9 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Годовое планирование</h1>
-    {% if current_user.is_admin() %}
     <a href="{{ url_for('export_yearly_plan', year=year) }}" class="btn btn-success">
         <i class="fas fa-file-excel"></i> Экспорт в Excel
     </a>
-    {% endif %}
 </div>
 
 <!-- Выбор года -->
