@@ -78,7 +78,9 @@
             <tbody>
                 {% for plan in plans %}
                 <tr>
-                    <td>{{ plan.created_at.strftime('%d.%m.%Y') }}</td>
+                    <td data-order="{{ plan.created_at.strftime('%Y-%m-%d') }}">
+                        <span style="display:none;">{{ plan.created_at.strftime('%Y-%m-%d') }}</span>{{ plan.created_at.strftime('%d.%m.%Y') }}
+                    </td>
                     <td>
                         {% set allergens = plan.get_allergens() %}
                         {% if allergens %}
