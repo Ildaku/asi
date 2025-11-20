@@ -62,4 +62,7 @@
     <a href="/" class="btn btn-link">На главную</a>
     <a href="/raw_materials" class="btn btn-link">К партиям сырья</a>
     <a href="/allergen_types" class="btn btn-link">Управление аллергенами</a>
+    {% if current_user.is_admin() %}
+    <a href="/employees" class="btn btn-link">Управление сотрудниками</a>
+    {% endif %}
 {% endblock %} 

@@ -4,13 +4,13 @@ from app import app, db
 from app.models import (
     RawMaterial, RecipeTemplate as Recipe, Product, RawMaterialType,
     RecipeItem as RecipeIngredient, RecipeItem, ProductionPlan, PlanStatus,
-    ProductionBatch, MaterialBatch, BatchMaterial, User, UserRole, AllergenType, MonthlyPlan
+    ProductionBatch, MaterialBatch, BatchMaterial, User, UserRole, AllergenType, MonthlyPlan, Employee
 )
 from app.forms import (
     RawMaterialForm, ProductForm, RecipeForm, RecipeIngredientForm,
     RawMaterialTypeForm, ProductionPlanForm, ProductionBatchForm,
     ProductionStatusForm, BatchIngredientForm, RawMaterialUsageReportForm,
-    ProductionStatisticsForm, LoginForm, AllergenTypeForm, EditRawMaterialTypeForm, MonthlyPlanForm, EditBatchProductionDateForm
+    ProductionStatisticsForm, LoginForm, AllergenTypeForm, EditRawMaterialTypeForm, MonthlyPlanForm, EditBatchProductionDateForm, EmployeeForm
 )
 from app.utils import (
     create_excel_report, style_header_row, adjust_column_width,
@@ -24,6 +24,9 @@ from flask_migrate import upgrade
 import subprocess
 from openpyxl import Workbook
 from io import BytesIO
+from docx import Document
+from docx.shared import Pt, Inches
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 @app.route('/')
 @login_required
@@ -87,6 +90,35 @@ def delete_allergen_type(id):
     db.session.commit()
     flash('Аллерген удален!', 'success')
     return redirect(url_for('allergen_types'))
+
+@app.route('/employees', methods=['GET', 'POST'])
+@admin_required
+def employees():
+    form = EmployeeForm()
+    if form.validate_on_submit():
+        employee = Employee(
+            first_name=form.first_name.data,
+            last_name=form.last_name.data
+        )
+        db.session.add(employee)
+        db.session.commit()
+        flash('Сотрудник добавлен!', 'success')
+        return redirect(url_for('employees'))
+    employees_list = Employee.query.order_by(Employee.last_name, Employee.first_name).all()
+    return render_template('employees.html', form=form, employees=employees_list)
+
+@app.route('/employees/delete/<int:id>', methods=['POST'])
+@admin_required
+def delete_employee(id):
+    employee = Employee.query.get_or_404(id)
+    # Проверяем, не используется ли сотрудник в замесах
+    if ProductionBatch.query.filter_by(employee_id=id).first():
+        flash('Нельзя удалить сотрудника, который указан как ответственный в замесах!', 'error')
+        return redirect(url_for('employees'))
+    db.session.delete(employee)
+    db.session.commit()
+    flash('Сотрудник удален!', 'success')
+    return redirect(url_for('employees'))
 
 @app.route('/raw_material_types/edit/<int:id>', methods=['GET', 'POST'])
 @admin_required
@@ -736,7 +768,8 @@ def add_batch(plan_id):
             plan=plan,
             batch_number=form.batch_number.data,
             weight=form.quantity.data,
-            production_date=datetime.now()  # Автоматически устанавливаем текущую дату
+            production_date=datetime.now(),  # Автоматически устанавливаем текущую дату
+            employee_id=form.employee_id.data if form.employee_id.data else None
         )
         db.session.add(batch)
         db.session.flush()  # Получаем ID замеса
@@ -954,9 +987,12 @@ def production_plan_detail(plan_id):
     # Создаем формы
     status_form = ProductionStatusForm(plan=plan)
     status_form.status.data = plan.status  # Устанавливаем текущий статус
-    batch_form = ProductionBatchForm()
+    batch_form = ProductionBatchForm()  # Форма автоматически загрузит список сотрудников
     batch_ingredient_form = BatchIngredientForm()
 
+    # Получаем список сотрудников для выбора в модальном окне множественного добавления
+    employees_list = Employee.query.order_by(Employee.last_name, Employee.first_name).all()
+    
     return render_template(
         'production_plan_detail.html',
         plan=plan,
@@ -970,6 +1006,7 @@ def production_plan_detail(plan_id):
         status_form=status_form,
         batch_form=batch_form,
         batch_ingredient_form=batch_ingredient_form,
+        employees=employees_list,
         PlanStatus=PlanStatus)
 
 @app.route('/batches/delete/<int:batch_id>', methods=['POST'])
@@ -1732,6 +1769,115 @@ def export_used_materials(plan_id):
         download_name=filename
     )
 
+@app.route('/production_plans/<int:plan_id>/export_word')
+@login_required
+def export_plan_to_word(plan_id):
+    """Экспорт плана производства в Word"""
+    plan = ProductionPlan.query.get_or_404(plan_id)
+    
+    # Проверяем статус плана
+    if plan.status not in [PlanStatus.IN_PROGRESS, PlanStatus.COMPLETED]:
+        flash('Экспорт в Word доступен только для планов в статусе "В производстве" или "Завершён"!', 'error')
+        return redirect(url_for('production_plan_detail', plan_id=plan_id))
+    
+    # Создаём документ Word
+    doc = Document()
+    
+    # Заголовок
+    title = doc.add_heading('План производства', 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # Информация о плане
+    doc.add_paragraph('Продукт: ' + plan.product.name)
+    doc.add_paragraph('Номер партии: ' + (plan.batch_number or 'Не указан'))
+    doc.add_paragraph('Количество: ' + f"{plan.quantity:.2f} кг")
+    doc.add_paragraph('Статус: ' + plan.status.display)
+    doc.add_paragraph('')  # Пустая строка
+    
+    # Замесы
+    doc.add_heading('Замесы', level=1)
+    
+    for batch in plan.batches:
+        # Информация о замесе
+        doc.add_heading(f'Замес №{batch.batch_number}', level=2)
+        
+        if batch.production_date:
+            doc.add_paragraph('Дата производства: ' + batch.production_date.strftime('%d.%m.%Y'))
+        else:
+            doc.add_paragraph('Дата производства: не указана')
+        
+        if batch.employee:
+            doc.add_paragraph('Ответственный: ' + batch.employee.get_full_name())
+        else:
+            doc.add_paragraph('Ответственный: не указан')
+        
+        doc.add_paragraph('Вес: ' + f"{batch.weight:.2f} кг")
+        doc.add_paragraph('')  # Пустая строка
+        
+        # Таблица сырья
+        doc.add_heading('Используемое сырьё', level=3)
+        
+        # Собираем данные о сырье для этого замеса
+        materials_data = {}
+        for bm in batch.materials:
+            if bm.material_batch and bm.material_batch.material and bm.material_batch.material.type:
+                material_type = bm.material_batch.material.type
+                material_name = material_type.name
+                batch_number = bm.material_batch.batch_number or 'N/A'
+                quantity = bm.quantity
+                
+                # Собираем аллергены
+                allergens = [a.name for a in material_type.allergens] if material_type.allergens else []
+                allergens_str = ', '.join(allergens) if allergens else 'Нет'
+                
+                # Группируем по типу сырья и партии
+                key = (material_name, batch_number, allergens_str)
+                if key not in materials_data:
+                    materials_data[key] = 0
+                materials_data[key] += quantity
+        
+        # Создаём таблицу
+        if materials_data:
+            table = doc.add_table(rows=1, cols=4)
+            table.style = 'Light Grid Accent 1'
+            
+            # Заголовки
+            header_cells = table.rows[0].cells
+            header_cells[0].text = 'Название сырья'
+            header_cells[1].text = 'Количество (кг)'
+            header_cells[2].text = 'Партия сырья'
+            header_cells[3].text = 'Аллергены'
+            
+            # Данные
+            for (material_name, batch_number, allergens_str), total_qty in materials_data.items():
+                row_cells = table.add_row().cells
+                row_cells[0].text = material_name
+                row_cells[1].text = f"{total_qty:.2f}"
+                row_cells[2].text = batch_number
+                row_cells[3].text = allergens_str
+        else:
+            doc.add_paragraph('Сырьё не добавлено')
+        
+        doc.add_paragraph('')  # Пустая строка между замесами
+    
+    # Сохраняем в память
+    output = BytesIO()
+    doc.save(output)
+    output.seek(0)
+    
+    # Формируем имя файла
+    product_name = plan.product.name.replace(' ', '_')
+    batch_number = plan.batch_number or f"plan_{plan.id}"
+    date_str = datetime.now().strftime('%Y%m%d')
+    filename = f"План_производства_{batch_number}_{date_str}.docx"
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        as_attachment=True,
+        download_name=filename
+    )
+
 @app.route('/production_plans/<int:plan_id>/add_multiple_batches', methods=['POST'])
 @operator_required
 def add_multiple_batches(plan_id):
@@ -1741,6 +1887,14 @@ def add_multiple_batches(plan_id):
         # Получаем данные из формы
         num_batches = int(request.form.get('num_batches', 0))
         weight_per_batch = float(request.form.get('weight_per_batch', 0))
+        employee_id = request.form.get('employee_id', None)
+        if employee_id:
+            try:
+                employee_id = int(employee_id)
+            except (ValueError, TypeError):
+                employee_id = None
+        else:
+            employee_id = None
         
         if num_batches <= 0 or weight_per_batch <= 0:
             flash('Количество замесов и вес должны быть больше 0', 'error')
@@ -1774,7 +1928,8 @@ def add_multiple_batches(plan_id):
                 plan=plan,
                 batch_number=batch_number,
                 weight=weight_per_batch,
-                production_date=datetime.now()  # Автоматически устанавливаем текущую дату
+                production_date=datetime.now(),  # Автоматически устанавливаем текущую дату
+                employee_id=employee_id
             )
             db.session.add(batch)
             db.session.flush()  # Получаем ID замеса

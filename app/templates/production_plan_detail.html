@@ -29,6 +29,11 @@
             </p>
         </div>
         <div class="col-md-4 text-end">
+            {% if plan.status == PlanStatus.IN_PROGRESS or plan.status == PlanStatus.COMPLETED %}
+            <a href="{{ url_for('export_plan_to_word', plan_id=plan.id) }}" class="btn btn-primary">
+                <i class="fas fa-file-word"></i> Экспорт в Word
+            </a>
+            {% endif %}
             <a href="{{ url_for('production_plans') }}" class="btn btn-outline-secondary">← К списку планов</a>
             {% if plan.status == PlanStatus.COMPLETED %}
             <a href="{{ url_for('export_used_materials', plan_id=plan.id) }}" class="btn btn-success ms-2">
@@ -235,6 +240,11 @@
                                     Дата производства: {{ batch_info.batch.production_date.strftime('%d.%m.%Y') }}
                                 {% else %}
                                     Дата производства: не указана
+                                {% endif %}<br>
+                                {% if batch_info.batch.employee %}
+                                    Ответственный: {{ batch_info.batch.employee.get_full_name() }}
+                                {% else %}
+                                    Ответственный: не указан
                                 {% endif %}
                             </small>
                         </div>
@@ -274,6 +284,11 @@
                                 <tr>
                                     <td>
                                         {{ info.type.name }}
+                                        {% if info.type.allergens %}
+                                            {% for allergen in info.type.allergens %}
+                                                <span class="badge bg-warning ms-1">{{ allergen.name }}</span>
+                                            {% endfor %}
+                                        {% endif %}
                                         {# Суммированный список партий (контрольный) #}
                                         {% if info.added_materials %}
                                             <ul class="list-unstyled mb-0 ps-3">
@@ -357,6 +372,10 @@
                         {{ batch_form.quantity.label }}
                         {{ batch_form.quantity(class="form-control", min="0.01", step="0.01") }}
                     </div>
+                    <div class="mb-3">
+                        {{ batch_form.employee_id.label }}
+                        {{ batch_form.employee_id(class="form-select") }}
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
@@ -419,6 +438,16 @@
                         <input type="number" class="form-control" id="weight_per_batch" name="weight_per_batch" 
                                min="0.01" max="1000" step="0.01" required placeholder="Например: 1000">
                         <div class="form-text">Максимальный вес одного замеса: 1000 кг</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="employee_id_multiple" class="form-label">Ответственный сотрудник (для всех замесов)</label>
+                        <select class="form-select" id="employee_id_multiple" name="employee_id">
+                            <option value="">Не указан</option>
+                            {% for employee in employees %}
+                                <option value="{{ employee.id }}">{{ employee.get_full_name() }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Выбранный сотрудник будет назначен ответственным для всех создаваемых замесов</div>
                     </div>
                     <div class="alert alert-info">
                         <strong>Информация:</strong><br>

@@ -51,6 +51,23 @@ class User(db.Model, UserMixin):
     def is_operator(self):
         return self.role == UserRole.OPERATOR
 
+class Employee(db.Model):
+    __tablename__ = "employees"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    first_name = Column(String, nullable=False)
+    last_name = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    production_batches = relationship("ProductionBatch", back_populates="employee")
+    
+    def __repr__(self):
+        return f"<Employee {self.first_name} {self.last_name}>"
+    
+    def get_full_name(self):
+        return f"{self.last_name} {self.first_name}"
+
 # Промежуточная таблица для many-to-many связи между видами сырья и аллергенами
 raw_material_type_allergens = Table(
     'raw_material_type_allergens',
@@ -272,11 +289,13 @@ class ProductionBatch(db.Model):
     batch_number = Column(String)
     weight = Column(Float)
     production_date = Column(DateTime(timezone=True), nullable=True)  # Реальная дата производства замеса
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=True)  # Ответственный сотрудник
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     created_by = Column(Integer, ForeignKey("users.id"))
 
     plan = relationship("ProductionPlan", back_populates="batches")
+    employee = relationship("Employee", back_populates="production_batches")
     materials = relationship("BatchMaterial", back_populates="batch", cascade="all, delete-orphan")
 
 class BatchMaterial(db.Model):

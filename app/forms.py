@@ -3,12 +3,17 @@ from wtforms import StringField, FloatField, DateField, SubmitField, SelectField
 from wtforms.validators import DataRequired, NumberRange, ValidationError, Length, Optional, Email
 from .models import (
     RawMaterial, RecipeTemplate as Recipe, Product, RawMaterialType, RecipeItem as RecipeIngredient,
-    ProductionPlan, PlanStatus, User, UserRole, AllergenType, MonthlyPlan
+    ProductionPlan, PlanStatus, User, UserRole, AllergenType, MonthlyPlan, Employee
 )
 
 class AllergenTypeForm(FlaskForm):
     name = StringField('Название аллергена', validators=[DataRequired()])
     submit = SubmitField('Добавить аллерген')
+
+class EmployeeForm(FlaskForm):
+    first_name = StringField('Имя', validators=[DataRequired(), Length(min=1, max=100)])
+    last_name = StringField('Фамилия', validators=[DataRequired(), Length(min=1, max=100)])
+    submit = SubmitField('Добавить сотрудника')
 
 class RawMaterialTypeForm(FlaskForm):
     name = StringField('Название сырья', validators=[DataRequired()])
@@ -165,7 +170,12 @@ class ProductionBatchForm(FlaskForm):
         DataRequired(),
         NumberRange(min=0.01, max=1000, message='Количество должно быть от 0.01 до 1000 кг')
     ])
+    employee_id = SelectField('Ответственный сотрудник', coerce=int, validators=[Optional()])
     submit = SubmitField('Добавить замес')
+    
+    def __init__(self, *args, **kwargs):
+        super(ProductionBatchForm, self).__init__(*args, **kwargs)
+        self.employee_id.choices = [('', 'Не указан')] + [(e.id, e.get_full_name()) for e in Employee.query.order_by(Employee.last_name, Employee.first_name).all()]
 
 class EditBatchProductionDateForm(FlaskForm):
     production_date = DateField('Дата производства', format='%Y-%m-%d', validators=[Optional()])
