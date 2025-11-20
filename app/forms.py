@@ -1,6 +1,15 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, FloatField, DateField, SubmitField, SelectField, SelectMultipleField, TextAreaField, DecimalField, PasswordField
 from wtforms.validators import DataRequired, NumberRange, ValidationError, Length, Optional, Email
+
+def coerce_optional_int(value):
+    """Преобразует значение в int или возвращает None для пустых значений"""
+    if value is None or value == '' or value == 'None':
+        return None
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return None
 from .models import (
     RawMaterial, RecipeTemplate as Recipe, Product, RawMaterialType, RecipeItem as RecipeIngredient,
     ProductionPlan, PlanStatus, User, UserRole, AllergenType, MonthlyPlan, Employee
@@ -170,11 +179,12 @@ class ProductionBatchForm(FlaskForm):
         DataRequired(),
         NumberRange(min=0.01, max=1000, message='Количество должно быть от 0.01 до 1000 кг')
     ])
-    employee_id = SelectField('Ответственный сотрудник', coerce=int, validators=[Optional()])
+    employee_id = SelectField('Ответственный сотрудник', coerce=coerce_optional_int, validators=[Optional()])
     submit = SubmitField('Добавить замес')
     
     def __init__(self, *args, **kwargs):
         super(ProductionBatchForm, self).__init__(*args, **kwargs)
+        # Используем пустую строку для "не указан", coerce_optional_int обработает её как None
         self.employee_id.choices = [('', 'Не указан')] + [(e.id, e.get_full_name()) for e in Employee.query.order_by(Employee.last_name, Employee.first_name).all()]
 
 class EditBatchProductionDateForm(FlaskForm):
