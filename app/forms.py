@@ -191,6 +191,15 @@ class EditBatchProductionDateForm(FlaskForm):
     production_date = DateField('Дата производства', format='%Y-%m-%d', validators=[Optional()])
     submit = SubmitField('Сохранить дату')
 
+class EditBatchEmployeeForm(FlaskForm):
+    employee_id = SelectField('Ответственный сотрудник', coerce=coerce_optional_int, validators=[Optional()])
+    submit = SubmitField('Сохранить')
+    
+    def __init__(self, *args, **kwargs):
+        super(EditBatchEmployeeForm, self).__init__(*args, **kwargs)
+        # Используем пустую строку для "не указан", coerce_optional_int обработает её как None
+        self.employee_id.choices = [('', 'Не указан')] + [(e.id, e.get_full_name()) for e in Employee.query.order_by(Employee.last_name, Employee.first_name).all()]
+
 class BatchIngredientForm(FlaskForm):
     raw_material_id = SelectField('Партия сырья', coerce=int)
     quantity = FloatField('Количество (кг)', validators=[DataRequired()])

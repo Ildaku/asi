@@ -10,7 +10,7 @@ from app.forms import (
     RawMaterialForm, ProductForm, RecipeForm, RecipeIngredientForm,
     RawMaterialTypeForm, ProductionPlanForm, ProductionBatchForm,
     ProductionStatusForm, BatchIngredientForm, RawMaterialUsageReportForm,
-    ProductionStatisticsForm, LoginForm, AllergenTypeForm, EditRawMaterialTypeForm, MonthlyPlanForm, EditBatchProductionDateForm, EmployeeForm
+    ProductionStatisticsForm, LoginForm, AllergenTypeForm, EditRawMaterialTypeForm, MonthlyPlanForm, EditBatchProductionDateForm, EditBatchEmployeeForm, EmployeeForm
 )
 from app.utils import (
     create_excel_report, style_header_row, adjust_column_width,
@@ -1054,6 +1054,33 @@ def edit_batch_production_date(batch_id):
         return redirect(url_for('production_plan_detail', plan_id=plan.id))
     
     return render_template('edit_batch_production_date.html', form=form, batch=batch, plan=plan)
+
+@app.route('/batches/<int:batch_id>/edit_employee', methods=['GET', 'POST'])
+@login_required
+def edit_batch_employee(batch_id):
+    """Редактирование ответственного сотрудника для замеса"""
+    batch = ProductionBatch.query.get_or_404(batch_id)
+    plan = batch.plan
+    
+    # Проверяем, что план в производстве или завершён
+    if plan.status not in [PlanStatus.IN_PROGRESS, PlanStatus.COMPLETED]:
+        flash('Ответственного можно редактировать только для планов в производстве или завершённых', 'error')
+        return redirect(url_for('production_plan_detail', plan_id=plan.id))
+    
+    # Для завершённых планов редактирование доступно только администраторам
+    if plan.status == PlanStatus.COMPLETED and not current_user.is_admin():
+        flash('Ответственного завершённых планов могут редактировать только администраторы', 'error')
+        return redirect(url_for('production_plan_detail', plan_id=plan.id))
+    
+    form = EditBatchEmployeeForm(obj=batch)
+    
+    if form.validate_on_submit():
+        batch.employee_id = form.employee_id.data
+        db.session.commit()
+        flash('Ответственный сотрудник обновлён!', 'success')
+        return redirect(url_for('production_plan_detail', plan_id=plan.id))
+    
+    return render_template('edit_batch_employee.html', form=form, batch=batch, plan=plan)
 
 @app.route('/batch_ingredients/delete/<int:ingredient_id>', methods=['POST'])
 @login_required

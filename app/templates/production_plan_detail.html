@@ -255,6 +255,10 @@
                                class="btn btn-sm btn-outline-primary" title="Редактировать дату производства">
                                 <i class="fas fa-calendar-alt"></i>
                             </a>
+                            <a href="{{ url_for('edit_batch_employee', batch_id=batch_info.batch.id) }}" 
+                               class="btn btn-sm btn-outline-info" title="Редактировать ответственного">
+                                <i class="fas fa-user"></i>
+                            </a>
                             {% endif %}
                             {% if plan.status != PlanStatus.COMPLETED %}
                             <form method="POST" action="{{ url_for('delete_batch', batch_id=batch_info.batch.id) }}" style="display:inline;" onsubmit="return confirm('Удалить этот замес?');">
