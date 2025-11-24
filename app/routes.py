@@ -745,8 +745,8 @@ def add_batch(plan_id):
     
     if form.validate_on_submit():
         # Проверяем максимальный вес замеса
-        if form.quantity.data > 1000:
-            flash('Вес замеса не может превышать 1000 кг', 'error')
+        if form.quantity.data > 1200:
+            flash('Вес замеса не может превышать 1200 кг', 'error')
             return redirect(url_for('production_plan_detail', plan_id=plan_id))
         
         # Проверяем уникальность номера замеса в рамках текущего плана
@@ -1928,8 +1928,8 @@ def add_multiple_batches(plan_id):
             return redirect(url_for('production_plan_detail', plan_id=plan_id))
         
         # Проверяем максимальный вес замеса
-        if weight_per_batch > 1000:
-            flash('Вес замеса не может превышать 1000 кг', 'error')
+        if weight_per_batch > 1200:
+            flash('Вес замеса не может превышать 1200 кг', 'error')
             return redirect(url_for('production_plan_detail', plan_id=plan_id))
         
         # Проверяем, не превышает ли общее количество план

@@ -177,7 +177,7 @@ class ProductionBatchForm(FlaskForm):
     ])
     quantity = FloatField('Количество (кг)', validators=[
         DataRequired(),
-        NumberRange(min=0.01, max=1000, message='Количество должно быть от 0.01 до 1000 кг')
+        NumberRange(min=0.01, max=1200, message='Количество должно быть от 0.01 до 1200 кг')
     ])
     employee_id = SelectField('Ответственный сотрудник', coerce=coerce_optional_int, validators=[Optional()])
     submit = SubmitField('Добавить замес')
