@@ -873,7 +873,9 @@ def add_batch_ingredient(plan_id):
             bi.quantity for bi in batch.materials
             if bi.material_batch.material.type_id == ingredient_info.material_type_id
         ])
-        if form.quantity.data > need_qty:
+        # Используем epsilon для учёта погрешности вычислений с плавающей точкой
+        epsilon = 0.01  # Погрешность 0.01 кг (1 грамм)
+        if form.quantity.data > need_qty + epsilon:
             flash(f'Нельзя добавить больше чем нужно ({need_qty:.2f} кг)', 'error')
             return redirect(url_for('production_plan_detail', plan_id=plan_id))
         if form.quantity.data > raw_material.quantity_kg:
