@@ -41,7 +41,6 @@
             </a>
             {% if not plan.picked_up_at %}
             <form method="POST" action="{{ url_for('mark_plan_picked_up', plan_id=plan.id) }}" style="display: inline;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-info ms-2" title="Отметить как забранный со склада производства">
                     <i class="fas fa-warehouse"></i> Забран со склада
                 </button>
@@ -52,7 +51,6 @@
             </span>
             {% if current_user.is_admin() %}
             <form method="POST" action="{{ url_for('unmark_plan_picked_up', plan_id=plan.id) }}" style="display: inline;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-outline-warning btn-sm ms-2" title="Снять отметку о заборе">
                     <i class="fas fa-undo"></i>
                 </button>
