@@ -8,6 +8,7 @@
             <a href="{{ url_for('products') }}" class="list-group-item list-group-item-action">Продукты</a>
             <a href="{{ url_for('production_plans') }}" class="list-group-item list-group-item-action">План производства</a>
             <a href="{{ url_for('yearly_planning') }}" class="list-group-item list-group-item-action">Годовое планирование</a>
+            <a href="{{ url_for('warehouse_production') }}" class="list-group-item list-group-item-action">Склад производства</a>
             <a href="{{ url_for('reports') }}" class="list-group-item list-group-item-action">Отчёты</a>
             {% if current_user.is_admin() %}
             <a href="{{ url_for('employees') }}" class="list-group-item list-group-item-action">Сотрудники</a>

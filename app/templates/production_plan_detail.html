@@ -39,6 +39,26 @@
             <a href="{{ url_for('export_used_materials', plan_id=plan.id) }}" class="btn btn-success ms-2">
                 Выгрузить отчёт по использованному сырью
             </a>
+            {% if not plan.picked_up_at %}
+            <form method="POST" action="{{ url_for('mark_plan_picked_up', plan_id=plan.id) }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-info ms-2" title="Отметить как забранный со склада производства">
+                    <i class="fas fa-warehouse"></i> Забран со склада
+                </button>
+            </form>
+            {% else %}
+            <span class="badge bg-success ms-2" title="Забран {{ plan.picked_up_at.strftime('%d.%m.%Y %H:%M') }}">
+                <i class="fas fa-check"></i> Забран {{ plan.picked_up_at.strftime('%d.%m.%Y') }}
+            </span>
+            {% if current_user.is_admin() %}
+            <form method="POST" action="{{ url_for('unmark_plan_picked_up', plan_id=plan.id) }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-outline-warning btn-sm ms-2" title="Снять отметку о заборе">
+                    <i class="fas fa-undo"></i>
+                </button>
+            </form>
+            {% endif %}
+            {% endif %}
             <form method="POST" action="{{ url_for('undo_plan_completion', plan_id=plan.id) }}" 
                   style="display: inline;" onsubmit="return confirm('Вы уверены, что хотите отменить завершение плана? Это восстановит списанное сырьё и вернёт план в статус Черновик.')">
                 <button type="submit" class="btn btn-warning ms-2">

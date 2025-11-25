@@ -1237,6 +1237,115 @@ def delete_production_plan(plan_id):
     
     return redirect(url_for('production_plans'))
 
+@app.route('/warehouse/production')
+@login_required
+def warehouse_production():
+    """Страница склада производства - список завершённых планов"""
+    # Получаем параметры фильтрации
+    filter_status = request.args.get('filter', 'not_picked')  # not_picked, picked, all
+    product_id = request.args.get('product_id', type=int)
+    date_from_str = request.args.get('date_from')
+    date_to_str = request.args.get('date_to')
+    
+    # Базовый запрос - только завершённые планы
+    query = ProductionPlan.query.filter(ProductionPlan.status == PlanStatus.COMPLETED)
+    
+    # Фильтр по статусу забора
+    if filter_status == 'not_picked':
+        query = query.filter(ProductionPlan.picked_up_at.is_(None))
+    elif filter_status == 'picked':
+        query = query.filter(ProductionPlan.picked_up_at.isnot(None))
+    # 'all' - показываем все завершённые планы
+    
+    # Фильтр по продукту
+    if product_id:
+        query = query.filter(ProductionPlan.product_id == product_id)
+    
+    # Фильтр по дате завершения (используем updated_at как приблизительную дату завершения)
+    if date_from_str:
+        try:
+            date_from = datetime.strptime(date_from_str, '%Y-%m-%d')
+            query = query.filter(ProductionPlan.updated_at >= date_from)
+        except ValueError:
+            flash('Неверный формат даты начала периода.', 'error')
+    
+    if date_to_str:
+        try:
+            date_to = datetime.strptime(date_to_str, '%Y-%m-%d')
+            query = query.filter(ProductionPlan.updated_at <= date_to + timedelta(days=1, seconds=-1))
+        except ValueError:
+            flash('Неверный формат даты конца периода.', 'error')
+    
+    # Сортировка: сначала не забранные, потом по дате завершения
+    plans = query.order_by(
+        ProductionPlan.picked_up_at.is_(None).desc(),  # Не забранные сначала
+        ProductionPlan.updated_at.desc()
+    ).all()
+    
+    # Данные для фильтров
+    products = Product.query.order_by(Product.name).all()
+    
+    # Статистика
+    total_plans = ProductionPlan.query.filter(ProductionPlan.status == PlanStatus.COMPLETED).count()
+    not_picked_count = ProductionPlan.query.filter(
+        ProductionPlan.status == PlanStatus.COMPLETED,
+        ProductionPlan.picked_up_at.is_(None)
+    ).count()
+    picked_count = total_plans - not_picked_count
+    
+    return render_template(
+        'warehouse_production.html',
+        plans=plans,
+        products=products,
+        filter_status=filter_status,
+        product_id=product_id,
+        date_from=date_from_str,
+        date_to=date_to_str,
+        total_plans=total_plans,
+        not_picked_count=not_picked_count,
+        picked_count=picked_count
+    )
+
+@app.route('/production_plans/<int:plan_id>/mark_picked_up', methods=['POST'])
+@login_required
+def mark_plan_picked_up(plan_id):
+    """Отметить план как забранный со склада производства"""
+    plan = ProductionPlan.query.get_or_404(plan_id)
+    
+    # Проверяем, что план завершён
+    if plan.status != PlanStatus.COMPLETED:
+        flash('Можно отмечать только завершённые планы!', 'error')
+        return redirect(url_for('warehouse_production'))
+    
+    # Отмечаем как забранный
+    if plan.picked_up_at is None:
+        plan.picked_up_at = datetime.now()
+        db.session.commit()
+        flash(f'План производства {plan.batch_number} отмечен как забранный со склада', 'success')
+    else:
+        flash('Этот план уже был отмечен как забранный', 'info')
+    
+    return redirect(url_for('warehouse_production', filter='not_picked'))
+
+@app.route('/production_plans/<int:plan_id>/unmark_picked_up', methods=['POST'])
+@login_required
+def unmark_plan_picked_up(plan_id):
+    """Снять отметку о заборе со склада (только для администраторов)"""
+    if not current_user.is_admin():
+        flash('Только администраторы могут снимать отметку о заборе', 'error')
+        return redirect(url_for('warehouse_production'))
+    
+    plan = ProductionPlan.query.get_or_404(plan_id)
+    
+    if plan.picked_up_at is not None:
+        plan.picked_up_at = None
+        db.session.commit()
+        flash(f'Отметка о заборе снята с плана {plan.batch_number}', 'success')
+    else:
+        flash('Этот план не был отмечен как забранный', 'info')
+    
+    return redirect(url_for('warehouse_production', filter='picked'))
+
 @app.route('/reports/raw_material_usage', methods=['GET', 'POST'])
 @login_required
 def raw_material_usage_report():
