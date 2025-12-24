@@ -41,7 +41,6 @@
             </a>
             {% if not plan.picked_up_at %}
             <form method="POST" action="{{ url_for('mark_plan_picked_up', plan_id=plan.id) }}" style="display: inline;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-info ms-2" title="Отметить как забранный со склада производства">
                     <i class="fas fa-warehouse"></i> Забран со склада
                 </button>
@@ -52,7 +51,6 @@
             </span>
             {% if current_user.is_admin() %}
             <form method="POST" action="{{ url_for('unmark_plan_picked_up', plan_id=plan.id) }}" style="display: inline;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-outline-warning btn-sm ms-2" title="Снять отметку о заборе">
                     <i class="fas fa-undo"></i>
                 </button>
@@ -116,8 +114,6 @@
                     {% endif %}
                     
                     <form method="POST" action="{{ url_for('update_plan_status', plan_id=plan.id) }}">
-                        {{ status_form.csrf_token }}
-                        
                         <!-- Поле даты производства -->
                         <div class="mb-3">
                             {{ status_form.production_date.label }}
@@ -282,7 +278,6 @@
                             {% endif %}
                             {% if plan.status != PlanStatus.COMPLETED %}
                             <form method="POST" action="{{ url_for('delete_batch', batch_id=batch_info.batch.id) }}" style="display:inline;" onsubmit="return confirm('Удалить этот замес?');">
-                                {{ batch_form.csrf_token }}
                                 <button type="submit" class="btn btn-danger btn-sm">Удалить</button>
                             </form>
                             {% endif %}
@@ -394,7 +389,6 @@
             </div>
             <form method="POST" action="{{ url_for('add_batch', plan_id=plan.id) }}">
                 <div class="modal-body">
-                    {{ batch_form.csrf_token }}
                     <div class="mb-3">
                         {{ batch_form.batch_number.label }}
                         {{ batch_form.batch_number(class="form-control") }}
@@ -427,7 +421,6 @@
             </div>
             <form method="POST" action="{{ url_for('add_batch_ingredient', plan_id=plan.id) }}">
                 <div class="modal-body">
-                    {{ batch_ingredient_form.csrf_token }}
                     <input type="hidden" name="batch_id" id="ingredientBatchId">
                     <input type="hidden" name="ingredient_type_id" id="ingredientTypeId">
                     <div class="mb-3">
