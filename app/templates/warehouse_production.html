@@ -127,12 +127,14 @@
                             </a>
                             {% if not plan.picked_up_at %}
                             <form method="POST" action="{{ url_for('mark_plan_picked_up', plan_id=plan.id) }}" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm btn-success" title="Отметить как забранный">
                                     <i class="fas fa-check"></i> Забран
                                 </button>
                             </form>
                             {% elif current_user.is_admin() %}
                             <form method="POST" action="{{ url_for('unmark_plan_picked_up', plan_id=plan.id) }}" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm btn-outline-warning" title="Снять отметку о заборе">
                                     <i class="fas fa-undo"></i>
                                 </button>

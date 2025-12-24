@@ -66,6 +66,7 @@
                 <tr>
                     <th>Дата</th>
                     <th>Аллергены</th>
+                    <th>Харам/Халяль</th>
                     <th>Продукт</th>
                     <th>Рецептура</th>
                     <th>Партия</th>
@@ -89,6 +90,16 @@
                             {% endfor %}
                         {% else %}
                             <span class="text-muted">Нет</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% set halal_status = plan.get_halal_status() %}
+                        {% if halal_status == 'Харам' %}
+                            <span class="badge bg-danger">Харам</span>
+                        {% elif halal_status == 'Халяль' %}
+                            <span class="badge bg-success">Халяль</span>
+                        {% else %}
+                            <span class="text-muted">Не указано</span>
                         {% endif %}
                     </td>
                     <td>{{ plan.product.name }}</td>

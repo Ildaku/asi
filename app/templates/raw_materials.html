@@ -63,7 +63,16 @@
                 <span class="text-muted">Нет</span>
               {% endif %}
             </td>
-            <td>{{ material.type.name if material.type else 'N/A' }}</td>
+            <td>
+              {{ material.type.name if material.type else 'N/A' }}
+              {% if material.type and material.type.halal_status %}
+                {% if material.type.halal_status.value == 'haram' %}
+                  <span class="badge bg-danger ms-1">Харам</span>
+                {% elif material.type.halal_status.value == 'halal' %}
+                  <span class="badge bg-success ms-1">Халяль</span>
+                {% endif %}
+              {% endif %}
+            </td>
             <td>{{ material.batch_number or 'N/A' }}</td>
             <td>{{ "%.2f"|format(material.quantity_kg) if material.quantity_kg is not none else '0.00' }} кг</td>
             <td>
@@ -146,7 +155,16 @@
                 <span class="text-muted">Нет</span>
               {% endif %}
             </td>
-            <td>{{ material.type.name if material.type else 'N/A' }}</td>
+            <td>
+              {{ material.type.name if material.type else 'N/A' }}
+              {% if material.type and material.type.halal_status %}
+                {% if material.type.halal_status.value == 'haram' %}
+                  <span class="badge bg-danger ms-1">Харам</span>
+                {% elif material.type.halal_status.value == 'halal' %}
+                  <span class="badge bg-success ms-1">Халяль</span>
+                {% endif %}
+              {% endif %}
+            </td>
             <td>{{ material.batch_number or 'N/A' }}</td>
             <td>0.00 кг</td>
             <td>

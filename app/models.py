@@ -27,6 +27,19 @@ class UserRole(str, enum.Enum):
     ADMIN = "admin"
     OPERATOR = "operator"
 
+class HalalStatus(str, enum.Enum):
+    HARAM = "haram"
+    HALAL = "halal"
+    NOT_SPECIFIED = "not_specified"
+    
+    @property
+    def display(self):
+        return {
+            HalalStatus.HARAM: "Харам",
+            HalalStatus.HALAL: "Халяль",
+            HalalStatus.NOT_SPECIFIED: "Не указано"
+        }[self]
+
 class User(db.Model, UserMixin):
     __tablename__ = "users"
 
@@ -91,6 +104,7 @@ class RawMaterialType(db.Model):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
+    halal_status = Column(SQLAlchemyEnum(HalalStatus), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
@@ -281,6 +295,34 @@ class ProductionPlan(db.Model):
                 allergens.add(allergen.name)
         
         return sorted(list(allergens))
+    
+    def get_halal_status(self):
+        """Возвращает статус Харам/Халяль для плана производства
+        
+        Returns:
+            str: "Харам" если есть хотя бы одно сырьё со статусом Харам,
+                 "Халяль" если все сырьё Халяль,
+                 "Не указано" если нет сырья со статусом или все не указано
+        """
+        if not self.template or not self.template.recipe_items:
+            return "Не указано"
+        
+        has_haram = False
+        has_halal = False
+        
+        for ingredient in self.template.recipe_items:
+            status = ingredient.material_type.halal_status
+            if status == HalalStatus.HARAM:
+                has_haram = True
+            elif status == HalalStatus.HALAL:
+                has_halal = True
+        
+        if has_haram:
+            return "Харам"
+        elif has_halal:
+            return "Халяль"
+        else:
+            return "Не указано"
 
 class ProductionBatch(db.Model):
     __tablename__ = "production_batches"

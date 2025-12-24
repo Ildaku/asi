@@ -8,12 +8,16 @@
             <label class="form-label">{{ form.name.label }}</label>
             {{ form.name(class="form-control", size=32) }}
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <label class="form-label">{{ form.allergen_type_ids.label }}</label>
             {{ form.allergen_type_ids(class="form-select", multiple=True, size="3") }}
             <div class="form-text">Удерживайте Ctrl для выбора нескольких</div>
         </div>
-        <div class="col-md-2 d-flex align-items-end">
+        <div class="col-md-2">
+            <label class="form-label">{{ form.halal_status.label }}</label>
+            {{ form.halal_status(class="form-select") }}
+        </div>
+        <div class="col-md-1 d-flex align-items-end">
             {{ form.submit(class="btn btn-primary") }}
         </div>
     </form>
@@ -24,6 +28,7 @@
                 <tr>
                     <th>Название</th>
                     <th>Аллерген</th>
+                    <th>Харам/Халяль</th>
                     <th>Действия</th>
                 </tr>
             </thead>
@@ -38,6 +43,17 @@
                             {% endfor %}
                         {% else %}
                             <span class="text-muted">Нет</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if t.halal_status %}
+                            {% if t.halal_status.value == 'haram' %}
+                                <span class="badge bg-danger">Харам</span>
+                            {% elif t.halal_status.value == 'halal' %}
+                                <span class="badge bg-success">Халяль</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted">Не указано</span>
                         {% endif %}
                     </td>
                     <td>

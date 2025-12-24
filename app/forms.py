@@ -12,7 +12,7 @@ def coerce_optional_int(value):
         return None
 from .models import (
     RawMaterial, RecipeTemplate as Recipe, Product, RawMaterialType, RecipeItem as RecipeIngredient,
-    ProductionPlan, PlanStatus, User, UserRole, AllergenType, MonthlyPlan, Employee
+    ProductionPlan, PlanStatus, User, UserRole, AllergenType, MonthlyPlan, Employee, HalalStatus
 )
 
 class AllergenTypeForm(FlaskForm):
@@ -27,6 +27,11 @@ class EmployeeForm(FlaskForm):
 class RawMaterialTypeForm(FlaskForm):
     name = StringField('Название сырья', validators=[DataRequired()])
     allergen_type_ids = SelectMultipleField('Аллергены', coerce=int, validators=[Optional()])
+    halal_status = SelectField('Харам/Халяль', coerce=str, validators=[Optional()], choices=[
+        ('', 'Не указано'),
+        (HalalStatus.HARAM.value, HalalStatus.HARAM.display),
+        (HalalStatus.HALAL.value, HalalStatus.HALAL.display)
+    ])
     submit = SubmitField('Добавить вид сырья')
     
     def __init__(self, *args, **kwargs):
@@ -36,6 +41,11 @@ class RawMaterialTypeForm(FlaskForm):
 class EditRawMaterialTypeForm(FlaskForm):
     name = StringField('Название сырья', validators=[DataRequired()])
     allergen_type_ids = SelectMultipleField('Аллергены', coerce=int, validators=[Optional()])
+    halal_status = SelectField('Харам/Халяль', coerce=str, validators=[Optional()], choices=[
+        ('', 'Не указано'),
+        (HalalStatus.HARAM.value, HalalStatus.HARAM.display),
+        (HalalStatus.HALAL.value, HalalStatus.HALAL.display)
+    ])
     submit = SubmitField('Сохранить изменения')
     
     def __init__(self, *args, **kwargs):

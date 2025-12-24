@@ -4,7 +4,7 @@ from app import app, db
 from app.models import (
     RawMaterial, RecipeTemplate as Recipe, Product, RawMaterialType,
     RecipeItem as RecipeIngredient, RecipeItem, ProductionPlan, PlanStatus,
-    ProductionBatch, MaterialBatch, BatchMaterial, User, UserRole, AllergenType, MonthlyPlan, Employee
+    ProductionBatch, MaterialBatch, BatchMaterial, User, UserRole, AllergenType, MonthlyPlan, Employee, HalalStatus
 )
 from app.forms import (
     RawMaterialForm, ProductForm, RecipeForm, RecipeIngredientForm,
@@ -40,6 +40,13 @@ def raw_material_types():
     form = RawMaterialTypeForm()
     if form.validate_on_submit():
         t = RawMaterialType(name=form.name.data)
+        
+        # Установить halal_status
+        if form.halal_status.data:
+            t.halal_status = HalalStatus(form.halal_status.data)
+        else:
+            t.halal_status = None
+        
         db.session.add(t)
         db.session.flush()  # Получить ID
         
@@ -129,9 +136,20 @@ def edit_raw_material_type(id):
     # Устанавливаем выбранные аллергены
     if request.method == 'GET':
         form.allergen_type_ids.data = [a.id for a in material_type.allergens]
+        # Устанавливаем halal_status
+        if material_type.halal_status:
+            form.halal_status.data = material_type.halal_status.value
+        else:
+            form.halal_status.data = ''
     
     if form.validate_on_submit():
         material_type.name = form.name.data
+        
+        # Установить halal_status
+        if form.halal_status.data:
+            material_type.halal_status = HalalStatus(form.halal_status.data)
+        else:
+            material_type.halal_status = None
         
         # Очистить существующие аллергены
         material_type.allergens.clear()
@@ -1968,15 +1986,23 @@ def export_plan_to_word(plan_id):
                 allergens = [a.name for a in material_type.allergens] if material_type.allergens else []
                 allergens_str = ', '.join(allergens) if allergens else 'Нет'
                 
-                # Группируем по типу сырья и партии
-                key = (material_name, batch_number, allergens_str)
+                # Получаем статус Харам/Халяль
+                halal_status_str = 'Не указано'
+                if material_type.halal_status:
+                    if material_type.halal_status.value == 'haram':
+                        halal_status_str = 'Харам'
+                    elif material_type.halal_status.value == 'halal':
+                        halal_status_str = 'Халяль'
+                
+                # Группируем по типу сырья, партии, аллергенам и статусу
+                key = (material_name, batch_number, allergens_str, halal_status_str)
                 if key not in materials_data:
                     materials_data[key] = 0
                 materials_data[key] += quantity
         
         # Создаём таблицу
         if materials_data:
-            table = doc.add_table(rows=1, cols=4)
+            table = doc.add_table(rows=1, cols=5)
             table.style = 'Light Grid Accent 1'
             
             # Заголовки
@@ -1985,14 +2011,16 @@ def export_plan_to_word(plan_id):
             header_cells[1].text = 'Количество (кг)'
             header_cells[2].text = 'Партия сырья'
             header_cells[3].text = 'Аллергены'
+            header_cells[4].text = 'Харам/Халяль'
             
             # Данные
-            for (material_name, batch_number, allergens_str), total_qty in materials_data.items():
+            for (material_name, batch_number, allergens_str, halal_status_str), total_qty in materials_data.items():
                 row_cells = table.add_row().cells
                 row_cells[0].text = material_name
                 row_cells[1].text = f"{total_qty:.2f}"
                 row_cells[2].text = batch_number
                 row_cells[3].text = allergens_str
+                row_cells[4].text = halal_status_str
         else:
             doc.add_paragraph('Сырьё не добавлено')
         
