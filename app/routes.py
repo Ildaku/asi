@@ -131,10 +131,11 @@ def delete_employee(id):
 @admin_required
 def edit_raw_material_type(id):
     material_type = RawMaterialType.query.get_or_404(id)
-    form = EditRawMaterialTypeForm(obj=material_type)
+    form = EditRawMaterialTypeForm()
     
-    # Устанавливаем выбранные аллергены
+    # Устанавливаем значения для формы
     if request.method == 'GET':
+        form.name.data = material_type.name
         form.allergen_type_ids.data = [a.id for a in material_type.allergens]
         # Устанавливаем halal_status
         if material_type.halal_status:
@@ -146,8 +147,12 @@ def edit_raw_material_type(id):
         material_type.name = form.name.data
         
         # Установить halal_status
-        if form.halal_status.data:
-            material_type.halal_status = HalalStatus(form.halal_status.data)
+        if form.halal_status.data and form.halal_status.data.strip():
+            try:
+                material_type.halal_status = HalalStatus(form.halal_status.data)
+            except ValueError:
+                flash('Некорректное значение статуса Харам/Халяль', 'error')
+                return render_template('edit_raw_material_type.html', form=form, material_type=material_type)
         else:
             material_type.halal_status = None
         
