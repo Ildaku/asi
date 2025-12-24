@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float, DateTime, Enum as SQLAlchemyEnum, Numeric, Table, UniqueConstraint
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float, DateTime, Enum as SQLAlchemyEnum, Numeric, Table, UniqueConstraint, TypeDecorator
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from . import db
@@ -39,6 +39,31 @@ class HalalStatus(str, enum.Enum):
             HalalStatus.HALAL: "Халяль",
             HalalStatus.NOT_SPECIFIED: "Не указано"
         }[self]
+
+class HalalStatusType(TypeDecorator):
+    """Кастомный тип для правильного сохранения HalalStatus в PostgreSQL Enum"""
+    impl = String
+    cache_ok = True
+    
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            # Используем PostgreSQL Enum тип
+            return dialect.type_descriptor(SQLAlchemyEnum(HalalStatus, name='halalstatus', native_enum=True, create_constraint=False))
+        else:
+            # Для других БД используем String
+            return dialect.type_descriptor(String)
+    
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, HalalStatus):
+            return value.value  # Возвращаем значение Enum, а не имя
+        return value
+    
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        return HalalStatus(value)
 
 class User(db.Model, UserMixin):
     __tablename__ = "users"
@@ -104,7 +129,7 @@ class RawMaterialType(db.Model):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
-    halal_status = Column(SQLAlchemyEnum(HalalStatus), nullable=True)
+    halal_status = Column(HalalStatusType(), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     

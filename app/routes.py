@@ -149,7 +149,10 @@ def edit_raw_material_type(id):
         # Установить halal_status
         if form.halal_status.data and form.halal_status.data.strip():
             try:
-                material_type.halal_status = HalalStatus(form.halal_status.data)
+                # Создаем Enum из значения формы
+                halal_enum = HalalStatus(form.halal_status.data)
+                # Явно устанавливаем значение через присваивание Enum объекта
+                material_type.halal_status = halal_enum
             except ValueError:
                 flash('Некорректное значение статуса Харам/Халяль', 'error')
                 return render_template('edit_raw_material_type.html', form=form, material_type=material_type)
