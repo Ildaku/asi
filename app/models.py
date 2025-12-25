@@ -42,28 +42,29 @@ class HalalStatus(str, enum.Enum):
 
 class HalalStatusType(TypeDecorator):
     """Кастомный тип для правильного сохранения HalalStatus в PostgreSQL Enum"""
+    # Используем String как базовый тип, но преобразуем значения вручную
     impl = String
     cache_ok = True
     
-    def load_dialect_impl(self, dialect):
-        if dialect.name == 'postgresql':
-            # Используем PostgreSQL Enum тип
-            return dialect.type_descriptor(SQLAlchemyEnum(HalalStatus, name='halalstatus', native_enum=True, create_constraint=False))
-        else:
-            # Для других БД используем String
-            return dialect.type_descriptor(String)
-    
     def process_bind_param(self, value, dialect):
+        """Преобразует Enum в значение при сохранении в БД"""
         if value is None:
             return None
         if isinstance(value, HalalStatus):
-            return value.value  # Возвращаем значение Enum, а не имя
+            # Возвращаем значение Enum (например, 'halal'), а не имя константы ('HALAL')
+            return value.value
+        # Если уже строка, возвращаем как есть
         return value
     
     def process_result_value(self, value, dialect):
+        """Преобразует значение из БД обратно в Enum"""
         if value is None:
             return None
-        return HalalStatus(value)
+        # Преобразуем строку в Enum
+        try:
+            return HalalStatus(value)
+        except ValueError:
+            return None
 
 class User(db.Model, UserMixin):
     __tablename__ = "users"

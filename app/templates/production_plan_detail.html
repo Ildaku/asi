@@ -389,6 +389,7 @@
             </div>
             <form method="POST" action="{{ url_for('add_batch', plan_id=plan.id) }}">
                 <div class="modal-body">
+                    {{ batch_form.csrf_token }}
                     <div class="mb-3">
                         {{ batch_form.batch_number.label }}
                         {{ batch_form.batch_number(class="form-control") }}
@@ -421,6 +422,7 @@
             </div>
             <form method="POST" action="{{ url_for('add_batch_ingredient', plan_id=plan.id) }}">
                 <div class="modal-body">
+                    {{ batch_ingredient_form.csrf_token }}
                     <input type="hidden" name="batch_id" id="ingredientBatchId">
                     <input type="hidden" name="ingredient_type_id" id="ingredientTypeId">
                     <div class="mb-3">
