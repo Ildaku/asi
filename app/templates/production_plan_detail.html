@@ -114,6 +114,7 @@
                     {% endif %}
                     
                     <form method="POST" action="{{ url_for('update_plan_status', plan_id=plan.id) }}">
+                        {{ status_form.csrf_token }}
                         <!-- Поле даты производства -->
                         <div class="mb-3">
                             {{ status_form.production_date.label }}
