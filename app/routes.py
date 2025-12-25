@@ -4,7 +4,7 @@ from app import app, db
 from app.models import (
     RawMaterial, RecipeTemplate as Recipe, Product, RawMaterialType,
     RecipeItem as RecipeIngredient, RecipeItem, ProductionPlan, PlanStatus,
-    ProductionBatch, MaterialBatch, BatchMaterial, User, UserRole, AllergenType, MonthlyPlan, Employee, HalalStatus
+    ProductionBatch, MaterialBatch, BatchMaterial, User, UserRole, AllergenType, MonthlyPlan, Employee, HalalStatus, MassControlStatus
 )
 from app.forms import (
     RawMaterialForm, ProductForm, RecipeForm, RecipeIngredientForm,
@@ -46,6 +46,12 @@ def raw_material_types():
             t.halal_status = HalalStatus(form.halal_status.data)
         else:
             t.halal_status = None
+        
+        # Установить mass_control
+        if form.mass_control.data:
+            t.mass_control = MassControlStatus(form.mass_control.data)
+        else:
+            t.mass_control = None
         
         db.session.add(t)
         db.session.flush()  # Получить ID
@@ -142,6 +148,11 @@ def edit_raw_material_type(id):
             form.halal_status.data = material_type.halal_status.value
         else:
             form.halal_status.data = ''
+        # Устанавливаем mass_control
+        if material_type.mass_control:
+            form.mass_control.data = material_type.mass_control.value
+        else:
+            form.mass_control.data = ''
     
     if form.validate_on_submit():
         material_type.name = form.name.data
@@ -158,6 +169,16 @@ def edit_raw_material_type(id):
                 return render_template('edit_raw_material_type.html', form=form, material_type=material_type)
         else:
             material_type.halal_status = None
+        
+        # Установить mass_control
+        if form.mass_control.data and form.mass_control.data.strip():
+            try:
+                material_type.mass_control = MassControlStatus(form.mass_control.data)
+            except ValueError:
+                flash('Некорректное значение статуса контроля массы', 'error')
+                return render_template('edit_raw_material_type.html', form=form, material_type=material_type)
+        else:
+            material_type.mass_control = None
         
         # Очистить существующие аллергены
         material_type.allergens.clear()
@@ -1994,6 +2015,12 @@ def export_plan_to_word(plan_id):
                 allergens = [a.name for a in material_type.allergens] if material_type.allergens else []
                 allergens_str = ', '.join(allergens) if allergens else 'Нет'
                 
+                # Получаем статус контроля массы
+                mass_control_str = 'Не указано'
+                if material_type.mass_control:
+                    if material_type.mass_control.value == 'controlled':
+                        mass_control_str = 'Контролируется'
+                
                 # Получаем статус Харам/Халяль
                 halal_status_str = 'Не указано'
                 if material_type.halal_status:
@@ -2002,15 +2029,15 @@ def export_plan_to_word(plan_id):
                     elif material_type.halal_status.value == 'halal':
                         halal_status_str = 'Халяль'
                 
-                # Группируем по типу сырья, партии, аллергенам и статусу
-                key = (material_name, batch_number, allergens_str, halal_status_str)
+                # Группируем по типу сырья, партии, аллергенам, контролю массы и статусу
+                key = (material_name, batch_number, allergens_str, mass_control_str, halal_status_str)
                 if key not in materials_data:
                     materials_data[key] = 0
                 materials_data[key] += quantity
         
         # Создаём таблицу
         if materials_data:
-            table = doc.add_table(rows=1, cols=6)
+            table = doc.add_table(rows=1, cols=7)
             table.style = 'Light Grid Accent 1'
             
             # Заголовки
@@ -2019,18 +2046,20 @@ def export_plan_to_word(plan_id):
             header_cells[1].text = 'Количество (кг)'
             header_cells[2].text = 'Партия сырья'
             header_cells[3].text = 'Аллергены'
-            header_cells[4].text = 'Харам/Халяль'
-            header_cells[5].text = 'Масса норм. подпись'
+            header_cells[4].text = 'Контроль массы добавки'
+            header_cells[5].text = 'Харам/Халяль'
+            header_cells[6].text = 'Масса норм. подпись'
             
             # Данные
-            for (material_name, batch_number, allergens_str, halal_status_str), total_qty in materials_data.items():
+            for (material_name, batch_number, allergens_str, mass_control_str, halal_status_str), total_qty in materials_data.items():
                 row_cells = table.add_row().cells
                 row_cells[0].text = material_name
                 row_cells[1].text = f"{total_qty:.2f}"
                 row_cells[2].text = batch_number
                 row_cells[3].text = allergens_str
-                row_cells[4].text = halal_status_str
-                row_cells[5].text = ''  # Пустая ячейка для подписи
+                row_cells[4].text = mass_control_str
+                row_cells[5].text = halal_status_str
+                row_cells[6].text = ''  # Пустая ячейка для подписи
         else:
             doc.add_paragraph('Сырьё не добавлено')
         

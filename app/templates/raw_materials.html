@@ -72,6 +72,11 @@
                   <span class="badge bg-success ms-1">Халяль</span>
                 {% endif %}
               {% endif %}
+              {% if material.type and material.type.mass_control %}
+                {% if material.type.mass_control.value == 'controlled' %}
+                  <span class="badge bg-info ms-1">масса</span>
+                {% endif %}
+              {% endif %}
             </td>
             <td>{{ material.batch_number or 'N/A' }}</td>
             <td>{{ "%.2f"|format(material.quantity_kg) if material.quantity_kg is not none else '0.00' }} кг</td>
@@ -162,6 +167,11 @@
                   <span class="badge bg-danger ms-1">Харам</span>
                 {% elif material.type.halal_status.value == 'halal' %}
                   <span class="badge bg-success ms-1">Халяль</span>
+                {% endif %}
+              {% endif %}
+              {% if material.type and material.type.mass_control %}
+                {% if material.type.mass_control.value == 'controlled' %}
+                  <span class="badge bg-info ms-1">масса</span>
                 {% endif %}
               {% endif %}
             </td>

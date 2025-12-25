@@ -17,6 +17,10 @@
             <label class="form-label">{{ form.halal_status.label }}</label>
             {{ form.halal_status(class="form-select") }}
         </div>
+        <div class="col-md-2">
+            <label class="form-label">{{ form.mass_control.label }}</label>
+            {{ form.mass_control(class="form-select") }}
+        </div>
         <div class="col-md-1 d-flex align-items-end">
             {{ form.submit(class="btn btn-primary") }}
         </div>
@@ -29,6 +33,7 @@
                     <th>Название</th>
                     <th>Аллерген</th>
                     <th>Харам/Халяль</th>
+                    <th>Контроль массы</th>
                     <th>Действия</th>
                 </tr>
             </thead>
@@ -51,6 +56,15 @@
                                 <span class="badge bg-danger">Харам</span>
                             {% elif t.halal_status.value == 'halal' %}
                                 <span class="badge bg-success">Халяль</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted">Не указано</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if t.mass_control %}
+                            {% if t.mass_control.value == 'controlled' %}
+                                <span class="badge bg-info">масса</span>
                             {% endif %}
                         {% else %}
                             <span class="text-muted">Не указано</span>

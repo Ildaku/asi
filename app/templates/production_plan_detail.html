@@ -315,6 +315,11 @@
                                                 <span class="badge bg-success ms-1">Халяль</span>
                                             {% endif %}
                                         {% endif %}
+                                        {% if info.type.mass_control %}
+                                            {% if info.type.mass_control.value == 'controlled' %}
+                                                <span class="badge bg-info ms-1">масса</span>
+                                            {% endif %}
+                                        {% endif %}
                                         {# Суммированный список партий (контрольный) #}
                                         {% if info.added_materials %}
                                             <ul class="list-unstyled mb-0 ps-3">

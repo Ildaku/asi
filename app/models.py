@@ -40,6 +40,17 @@ class HalalStatus(str, enum.Enum):
             HalalStatus.NOT_SPECIFIED: "Не указано"
         }[self]
 
+class MassControlStatus(str, enum.Enum):
+    CONTROLLED = "controlled"
+    NOT_SPECIFIED = "not_specified"
+    
+    @property
+    def display(self):
+        return {
+            MassControlStatus.CONTROLLED: "Контролируется",
+            MassControlStatus.NOT_SPECIFIED: "Не указано"
+        }[self]
+
 class HalalStatusType(TypeDecorator):
     """Кастомный тип для правильного сохранения HalalStatus в PostgreSQL Enum"""
     # Используем String как базовый тип, но преобразуем значения вручную
@@ -63,6 +74,32 @@ class HalalStatusType(TypeDecorator):
         # Преобразуем строку в Enum
         try:
             return HalalStatus(value)
+        except ValueError:
+            return None
+
+class MassControlType(TypeDecorator):
+    """Кастомный тип для правильного сохранения MassControlStatus в PostgreSQL Enum"""
+    # Используем String как базовый тип, но преобразуем значения вручную
+    impl = String
+    cache_ok = True
+    
+    def process_bind_param(self, value, dialect):
+        """Преобразует Enum в значение при сохранении в БД"""
+        if value is None:
+            return None
+        if isinstance(value, MassControlStatus):
+            # Возвращаем значение Enum (например, 'controlled'), а не имя константы ('CONTROLLED')
+            return value.value
+        # Если уже строка, возвращаем как есть
+        return value
+    
+    def process_result_value(self, value, dialect):
+        """Преобразует значение из БД обратно в Enum"""
+        if value is None:
+            return None
+        # Преобразуем строку в Enum
+        try:
+            return MassControlStatus(value)
         except ValueError:
             return None
 
@@ -131,6 +168,7 @@ class RawMaterialType(db.Model):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
     halal_status = Column(HalalStatusType(), nullable=True)
+    mass_control = Column(MassControlType(), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     

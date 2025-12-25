@@ -12,7 +12,7 @@ def coerce_optional_int(value):
         return None
 from .models import (
     RawMaterial, RecipeTemplate as Recipe, Product, RawMaterialType, RecipeItem as RecipeIngredient,
-    ProductionPlan, PlanStatus, User, UserRole, AllergenType, MonthlyPlan, Employee, HalalStatus
+    ProductionPlan, PlanStatus, User, UserRole, AllergenType, MonthlyPlan, Employee, HalalStatus, MassControlStatus
 )
 
 class AllergenTypeForm(FlaskForm):
@@ -32,6 +32,10 @@ class RawMaterialTypeForm(FlaskForm):
         (HalalStatus.HARAM.value, HalalStatus.HARAM.display),
         (HalalStatus.HALAL.value, HalalStatus.HALAL.display)
     ])
+    mass_control = SelectField('Контроль массы добавки', coerce=str, validators=[Optional()], choices=[
+        ('', 'Не указано'),
+        (MassControlStatus.CONTROLLED.value, MassControlStatus.CONTROLLED.display)
+    ])
     submit = SubmitField('Добавить вид сырья')
     
     def __init__(self, *args, **kwargs):
@@ -45,6 +49,10 @@ class EditRawMaterialTypeForm(FlaskForm):
         ('', 'Не указано'),
         (HalalStatus.HARAM.value, HalalStatus.HARAM.display),
         (HalalStatus.HALAL.value, HalalStatus.HALAL.display)
+    ])
+    mass_control = SelectField('Контроль массы добавки', coerce=str, validators=[Optional()], choices=[
+        ('', 'Не указано'),
+        (MassControlStatus.CONTROLLED.value, MassControlStatus.CONTROLLED.display)
     ])
     submit = SubmitField('Сохранить изменения')
     

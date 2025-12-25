@@ -55,6 +55,17 @@
                             </div>
                         {% endif %}
                     </div>
+                    <div class="mb-3">
+                        {{ form.mass_control.label(class="form-label") }}
+                        {{ form.mass_control(class="form-select") }}
+                        {% if form.mass_control.errors %}
+                            <div class="text-danger">
+                                {% for error in form.mass_control.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save"></i> Сохранить изменения

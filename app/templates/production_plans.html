@@ -67,6 +67,7 @@
                     <th>Дата</th>
                     <th>Аллергены</th>
                     <th>Харам/Халяль</th>
+                    <th>Контроль массы</th>
                     <th>Продукт</th>
                     <th>Рецептура</th>
                     <th>Партия</th>
@@ -98,6 +99,14 @@
                             <span class="badge bg-danger">Харам</span>
                         {% elif halal_status == 'Халяль' %}
                             <span class="badge bg-success">Халяль</span>
+                        {% else %}
+                            <span class="text-muted">Не указано</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% set mass_control_status = plan.get_mass_control_status() %}
+                        {% if mass_control_status == 'Контролируется' %}
+                            <span class="badge bg-info">масса</span>
                         {% else %}
                             <span class="text-muted">Не указано</span>
                         {% endif %}
