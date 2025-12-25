@@ -2010,7 +2010,7 @@ def export_plan_to_word(plan_id):
         
         # Создаём таблицу
         if materials_data:
-            table = doc.add_table(rows=1, cols=5)
+            table = doc.add_table(rows=1, cols=6)
             table.style = 'Light Grid Accent 1'
             
             # Заголовки
@@ -2020,6 +2020,7 @@ def export_plan_to_word(plan_id):
             header_cells[2].text = 'Партия сырья'
             header_cells[3].text = 'Аллергены'
             header_cells[4].text = 'Харам/Халяль'
+            header_cells[5].text = 'Масса норм. подпись'
             
             # Данные
             for (material_name, batch_number, allergens_str, halal_status_str), total_qty in materials_data.items():
@@ -2029,6 +2030,7 @@ def export_plan_to_word(plan_id):
                 row_cells[2].text = batch_number
                 row_cells[3].text = allergens_str
                 row_cells[4].text = halal_status_str
+                row_cells[5].text = ''  # Пустая ячейка для подписи
         else:
             doc.add_paragraph('Сырьё не добавлено')
         
