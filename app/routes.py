@@ -16,7 +16,7 @@ from app.utils import (
     create_excel_report, style_header_row, adjust_column_width,
     save_excel_report, format_datetime
 )
-from sqlalchemy import func, cast, String
+from sqlalchemy import func, cast, String, case
 from sqlalchemy.orm import joinedload
 from flask_login import login_user, logout_user, login_required, current_user
 from app.decorators import admin_required, operator_required
@@ -1325,7 +1325,7 @@ def warehouse_production():
     
     # Сортировка: сначала не забранные, потом по дате завершения
     plans = query.order_by(
-        ProductionPlan.picked_up_at.is_(None).desc(),  # Не забранные сначала
+        case((ProductionPlan.picked_up_at.is_(None), 0), else_=1).asc(),  # Не забранные сначала (0 < 1)
         ProductionPlan.updated_at.desc()
     ).all()
     
