@@ -387,6 +387,24 @@ class ProductionPlan(db.Model):
             return "Халяль"
         else:
             return "Не указано"
+    
+    def get_mass_control_status(self):
+        """Возвращает статус Контроля массы для плана производства
+        
+        Returns:
+            str: "Контролируется" если есть хотя бы одно сырьё со статусом Контролируется,
+                 "Не указано" если нет сырья со статусом или все не указано
+        """
+        if not self.template or not self.template.recipe_items:
+            return "Не указано"
+
+        has_controlled = False
+        for ingredient in self.template.recipe_items:
+            status = ingredient.material_type.mass_control
+            if status == MassControlStatus.CONTROLLED:
+                has_controlled = True
+                break
+        return "Контролируется" if has_controlled else "Не указано"
 
 class ProductionBatch(db.Model):
     __tablename__ = "production_batches"
