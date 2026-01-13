@@ -645,7 +645,7 @@ def update_plan_status(plan_id):
                     need_qty = batch.weight * float(recipe_item.percentage) / 100
                     added_qty = sum(
                         bi.quantity for bi in batch.materials
-                        if bi.material_batch.material.type_id == recipe_item.material_type_id
+                        if bi.material_batch and bi.material_batch.material and bi.material_batch.material.type_id == recipe_item.material_type_id
                     )
                     if abs(added_qty - need_qty) > 0.01:  # допускаем небольшую погрешность
                         flash(
@@ -918,7 +918,7 @@ def add_batch_ingredient(plan_id):
             return redirect(url_for('production_plan_detail', plan_id=plan_id))
         need_qty = (batch.weight * float(ingredient_info.percentage) / 100) - sum([
             bi.quantity for bi in batch.materials
-            if bi.material_batch.material.type_id == ingredient_info.material_type_id
+            if bi.material_batch and bi.material_batch.material and bi.material_batch.material.type_id == ingredient_info.material_type_id
         ])
         # Используем epsilon для учёта погрешности вычислений с плавающей точкой
         epsilon = 0.01  # Погрешность 0.01 кг (1 грамм)
@@ -1003,18 +1003,20 @@ def production_plan_detail(plan_id):
                 batch_ingredients_query = BatchMaterial.query.filter_by(batch_id=batch.id)
                 batch_ingredients = [
                     bi for bi in batch_ingredients_query.all()
-                    if bi.material_batch.material.type_id == type_id
+                    if bi.material_batch and bi.material_batch.material and bi.material_batch.material.type_id == type_id
                 ]
                 added_qty = sum(bi.quantity for bi in batch_ingredients)
 
                 # Группируем партии по batch_number
                 grouped_batches = {}
                 for bi in batch_ingredients:
-                    key = bi.material_batch.batch_number
+                    if not bi.material_batch or not bi.material_batch.material:
+                        continue  # Пропускаем записи с удалённым сырьём
+                    key = bi.material_batch.batch_number or 'N/A'
                     if key not in grouped_batches:
                         grouped_batches[key] = {
-                            'batch_number': bi.material_batch.batch_number,
-                            'material_name': bi.material_batch.material.name,
+                            'batch_number': bi.material_batch.batch_number or 'N/A',
+                            'material_name': bi.material_batch.material.name if bi.material_batch.material else 'Удалено',
                             'quantity': 0.0
                         }
                     grouped_batches[key]['quantity'] += bi.quantity
@@ -1628,10 +1630,13 @@ def export_raw_material_usage():
     for plan in plans:
         for batch in plan.batches:
             for ingredient in batch.materials:
+                # Пропускаем записи с удалённым сырьём
+                if not ingredient.material_batch or not ingredient.material_batch.material or not ingredient.material_batch.material.type:
+                    continue
                 usage_data.append([
                     plan.created_at.strftime("%Y-%m-%d"),
                     ingredient.material_batch.material.type.name,
-                    ingredient.material_batch.material.batch_number,
+                    ingredient.material_batch.material.batch_number or 'N/A',
                     ingredient.quantity,
                     f"№{plan.batch_number}",
                     plan.product.name
@@ -1922,8 +1927,11 @@ def export_used_materials(plan_id):
     usage = {}
     for batch in plan.batches:
         for bm in batch.materials:
+            # Пропускаем записи с удалённым сырьём
+            if not bm.material_batch or not bm.material_batch.material or not bm.material_batch.material.type:
+                continue
             type_name = bm.material_batch.material.type.name
-            batch_number = bm.material_batch.material.batch_number
+            batch_number = bm.material_batch.material.batch_number or 'N/A'
             key = (type_name, batch_number)
             usage.setdefault(key, 0)
             usage[key] += bm.quantity
