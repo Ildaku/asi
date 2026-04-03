@@ -552,9 +552,12 @@ def production_plans():
     date_to_str = request.args.get('date_to')
 
     query = ProductionPlan.query
-# Скрываем планы "черновик" для операторов
+# Скрываем планы "черновик" и "на утверждении" для операторов
     if not current_user.is_admin():
-        query = query.filter(ProductionPlan.status != PlanStatus.DRAFT)
+        query = query.filter(
+            ProductionPlan.status != PlanStatus.DRAFT,
+            ProductionPlan.status != PlanStatus.PENDING_APPROVAL
+        )
     # Применяем фильтры
     if product_id:
         query = query.filter(ProductionPlan.product_id == product_id)
@@ -563,6 +566,8 @@ def production_plans():
         try:
             if status == PlanStatus.DRAFT.value:
                 status_enum = PlanStatus.DRAFT
+            elif status == PlanStatus.PENDING_APPROVAL.value:
+                status_enum = PlanStatus.PENDING_APPROVAL
             elif status == PlanStatus.APPROVED.value:
                 status_enum = PlanStatus.APPROVED
             elif status == PlanStatus.IN_PROGRESS.value:
@@ -603,6 +608,7 @@ def production_plans():
     # Цвета для статусов
     status_colors = {
         PlanStatus.DRAFT: 'secondary',
+        PlanStatus.PENDING_APPROVAL: 'warning',
         PlanStatus.APPROVED: 'info',
         PlanStatus.IN_PROGRESS: 'primary',
         PlanStatus.COMPLETED: 'success',
@@ -622,10 +628,20 @@ def production_plans():
 def update_plan_status(plan_id):
     plan = ProductionPlan.query.get_or_404(plan_id)
     form = ProductionStatusForm(plan=plan)
+
+    # Операторам запрещаем любые действия с планом в статусе "На утверждении".
+    if not current_user.is_admin() and plan.status == PlanStatus.PENDING_APPROVAL:
+        flash('План в статусе "На утверждении" доступен только администраторам.', 'error')
+        return redirect(url_for('production_plan_detail', plan_id=plan.id))
     
     if form.validate_on_submit():
         old_status = plan.status
         new_status = form.status.data
+
+        # Non-admin не может переводить план в статус "На утверждении".
+        if not current_user.is_admin() and new_status == PlanStatus.PENDING_APPROVAL:
+            flash('Перевод плана в статус "На утверждении" доступен только администраторам.', 'error')
+            return redirect(url_for('production_plan_detail', plan_id=plan.id))
 
         # Проверка перед установкой статуса "завершен"
         if new_status == PlanStatus.COMPLETED:
@@ -789,6 +805,11 @@ def get_available_materials_for_batch(needed_qty, material_type_id):
 def add_batch(plan_id):
     plan = ProductionPlan.query.get_or_404(plan_id)
     form = ProductionBatchForm()
+
+    # Операторам запрещаем создавать замесы в планах "На утверждении".
+    if not current_user.is_admin() and plan.status == PlanStatus.PENDING_APPROVAL:
+        flash('План в статусе "На утверждении" доступен только администраторам.', 'error')
+        return redirect(url_for('production_plan_detail', plan_id=plan_id))
     
     if form.validate_on_submit():
         # Проверяем максимальный вес замеса
@@ -905,6 +926,12 @@ def add_batch_ingredient(plan_id):
         flash('Не выбран замес или ингредиент для добавления', 'error')
         return redirect(url_for('production_plan_detail', plan_id=plan_id))
     batch = ProductionBatch.query.get_or_404(batch_id)
+
+    # Операторам запрещаем добавлять ингредиенты в замесы планов "На утверждении".
+    if not current_user.is_admin() and batch.plan.status == PlanStatus.PENDING_APPROVAL:
+        flash('План в статусе "На утверждении" доступен только администраторам.', 'error')
+        return redirect(url_for('production_plan_detail', plan_id=batch.plan_id))
+
     ingredient_info = next((info for info in batch.plan.template.recipe_items if str(info.material_type_id) == str(ingredient_type_id)), None)
     if not ingredient_info:
         flash('Выбран некорректный ингредиент', 'error')
@@ -951,6 +978,11 @@ def add_batch_ingredient(plan_id):
 @login_required
 def production_plan_detail(plan_id):
     plan = ProductionPlan.query.get_or_404(plan_id)
+
+    # План "На утверждении" видят и редактируют только администраторы.
+    if not current_user.is_admin() and plan.status == PlanStatus.PENDING_APPROVAL:
+        flash('План в статусе "На утверждении" доступен только администраторам.', 'error')
+        return redirect(url_for('production_plans'))
     
     # Проверяем существование рецептуры
     if not plan.template:
@@ -986,6 +1018,7 @@ def production_plan_detail(plan_id):
     # Цвета для статусов
     status_colors = {
         PlanStatus.DRAFT: 'secondary',
+        PlanStatus.PENDING_APPROVAL: 'warning',
         PlanStatus.APPROVED: 'info',
         PlanStatus.IN_PROGRESS: 'primary',
         PlanStatus.COMPLETED: 'success',
@@ -1065,6 +1098,12 @@ def production_plan_detail(plan_id):
 def delete_batch(batch_id):
     batch = ProductionBatch.query.get_or_404(batch_id)
     plan = batch.plan
+
+    # Операторам запрещаем удалять замесы в планах "На утверждении".
+    if not current_user.is_admin() and plan.status == PlanStatus.PENDING_APPROVAL:
+        flash('План в статусе "На утверждении" доступен только администраторам.', 'error')
+        return redirect(url_for('production_plan_detail', plan_id=plan.id))
+
     if plan.status == PlanStatus.COMPLETED:
         flash('Нельзя удалять замес после завершения плана!', 'danger')
         return redirect(url_for('production_plan_detail', plan_id=plan.id))
@@ -1140,6 +1179,11 @@ def delete_batch_ingredient(ingredient_id):
     ingredient = BatchMaterial.query.get_or_404(ingredient_id)
     plan_id = ingredient.batch.plan_id
 
+    # Операторам запрещаем удалять ингредиенты в планах "На утверждении".
+    if not current_user.is_admin() and ingredient.batch.plan.status == PlanStatus.PENDING_APPROVAL:
+        flash('План в статусе "На утверждении" доступен только администраторам.', 'error')
+        return redirect(url_for('production_plan_detail', plan_id=plan_id))
+
     # Проверяем статус плана, чтобы запретить изменения в завершенных планах
     if ingredient.batch.plan.status == PlanStatus.COMPLETED:
         flash('Нельзя удалять ингредиенты из завершенного плана!', 'danger')
@@ -1162,7 +1206,10 @@ def reports():
     # Остатки сырья
     raw_materials = RawMaterial.query.order_by(RawMaterial.type_id, RawMaterial.batch_number).all()
     # История производства
-    plans = ProductionPlan.query.order_by(ProductionPlan.created_at.desc()).all()
+    plans_query = ProductionPlan.query
+    if not current_user.is_admin():
+        plans_query = plans_query.filter(ProductionPlan.status != PlanStatus.PENDING_APPROVAL)
+    plans = plans_query.order_by(ProductionPlan.created_at.desc()).all()
     return render_template('reports.html', raw_materials=raw_materials, plans=plans)
 
 @app.route('/recipes/by_product/<int:product_id>')
@@ -1548,6 +1595,10 @@ def production_plans_report():
 
     query = ProductionPlan.query
 
+    # Операторам запрещаем видеть планы "На утверждении".
+    if not current_user.is_admin():
+        query = query.filter(ProductionPlan.status != PlanStatus.PENDING_APPROVAL)
+
     # Применяем фильтры
     if product_id:
         query = query.filter(ProductionPlan.product_id == product_id)
@@ -1596,6 +1647,7 @@ def production_plans_report():
     # Цвета для статусов
     status_colors = {
         PlanStatus.DRAFT: 'secondary',
+        PlanStatus.PENDING_APPROVAL: 'warning',
         PlanStatus.APPROVED: 'info',
         PlanStatus.IN_PROGRESS: 'primary',
         PlanStatus.COMPLETED: 'success',
@@ -1864,6 +1916,7 @@ def export_production_plans():
     # Сопоставление статусов для вывода на русском
     status_map = {
         "черновик": "Черновик",
+        "на утверждении": "На утверждении",
         "утверждён": "Утверждён",
         "в производстве": "В производстве",
         "завершен": "Завершен",
@@ -1871,7 +1924,10 @@ def export_production_plans():
     }
     
     # Получаем данные
-    plans = ProductionPlan.query.order_by(ProductionPlan.created_at.desc()).all()
+    plans_query = ProductionPlan.query
+    if not current_user.is_admin():
+        plans_query = plans_query.filter(ProductionPlan.status != PlanStatus.PENDING_APPROVAL)
+    plans = plans_query.order_by(ProductionPlan.created_at.desc()).all()
     
     for plan in plans:
         # Вычисляем прогресс выполнения
@@ -2095,6 +2151,11 @@ def export_plan_to_word(plan_id):
 @operator_required
 def add_multiple_batches(plan_id):
     plan = ProductionPlan.query.get_or_404(plan_id)
+
+    # Операторам запрещаем создавать замесы в планах "На утверждении".
+    if not current_user.is_admin() and plan.status == PlanStatus.PENDING_APPROVAL:
+        flash('План в статусе "На утверждении" доступен только администраторам.', 'error')
+        return redirect(url_for('production_plan_detail', plan_id=plan_id))
     
     try:
         # Получаем данные из формы
@@ -2229,6 +2290,11 @@ def add_multiple_batches(plan_id):
 @operator_required
 def delete_all_batches(plan_id):
     plan = ProductionPlan.query.get_or_404(plan_id)
+
+    # Операторам запрещаем удалять замесы в планах "На утверждении".
+    if not current_user.is_admin() and plan.status == PlanStatus.PENDING_APPROVAL:
+        flash('План в статусе "На утверждении" доступен только администраторам.', 'error')
+        return redirect(url_for('production_plan_detail', plan_id=plan_id))
     
     # Проверяем, что план не завершён
     if plan.status == PlanStatus.COMPLETED:

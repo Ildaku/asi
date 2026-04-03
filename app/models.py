@@ -8,6 +8,7 @@ from flask_login import UserMixin
 
 class PlanStatus(str, enum.Enum):
     DRAFT = "черновик"
+    PENDING_APPROVAL = "на утверждении"
     APPROVED = "утверждён"
     IN_PROGRESS = "в производстве"
     COMPLETED = "завершён"
@@ -17,6 +18,7 @@ class PlanStatus(str, enum.Enum):
     def display(self):
         return {
             PlanStatus.DRAFT: "Черновик",
+            PlanStatus.PENDING_APPROVAL: "На утверждении",
             PlanStatus.APPROVED: "Утверждён",
             PlanStatus.IN_PROGRESS: "В производстве",
             PlanStatus.COMPLETED: "Завершён",
@@ -435,7 +437,7 @@ class BatchMaterial(db.Model):
     created_by = Column(Integer, ForeignKey("users.id"))
 
     batch = relationship("ProductionBatch", back_populates="materials")
-    material_batch = relationship("MaterialBatch", back_populates="batch_materials")
+    material_batch = relationship("MaterialBatch", back_populates="batch_materials") 
 
 class MonthlyPlan(db.Model):
     __tablename__ = "monthly_plans"

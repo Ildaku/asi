@@ -37,6 +37,9 @@
                         <option value="{{ PlanStatus.DRAFT.value }}" 
                                     {% if PlanStatus.DRAFT.value == request.args.get('status') %}selected{% endif %}
                                     {% if not current_user.is_admin() %}style="display: none;"{% endif %}>Черновик</option>
+                        <option value="{{ PlanStatus.PENDING_APPROVAL.value }}"
+                                    {% if PlanStatus.PENDING_APPROVAL.value == request.args.get('status') %}selected{% endif %}
+                                    {% if not current_user.is_admin() %}style="display: none;"{% endif %}>На утверждении</option>
                         <option value="{{ PlanStatus.APPROVED.value }}" {% if PlanStatus.APPROVED.value == request.args.get('status') %}selected{% endif %}>Утверждён</option>
                         <option value="{{ PlanStatus.IN_PROGRESS.value }}" {% if PlanStatus.IN_PROGRESS.value == request.args.get('status') %}selected{% endif %}>В производстве</option>
                         <option value="{{ PlanStatus.COMPLETED.value }}" {% if PlanStatus.COMPLETED.value == request.args.get('status') %}selected{% endif %}>Завершен</option>
@@ -125,7 +128,8 @@
                         <div class="progress" style="height: 20px;">
                             <div class="progress-bar bg-{{ status_colors[plan.status] }}" 
                                  role="progressbar"
-                                 style="width: {{ progress }}%"
+                                 data-progress="{{ progress }}"
+                                 style="width: 0%;"
                                  aria-valuenow="{{ progress }}"
                                  aria-valuemin="0"
                                  aria-valuemax="100"
@@ -277,6 +281,12 @@ $(document).ready(function() {
 
     // Инициализация тултипов
     $('[data-bs-toggle="tooltip"]').tooltip();
+
+    // Устанавливаем ширину progress-bar после рендера (чтобы CSS-линтер не ругался на Jinja-интерполяцию).
+    $('.progress-bar[data-progress]').each(function() {
+        const p = $(this).data('progress');
+        $(this).css('width', `${p}%`);
+    });
 });
 </script>
 {% endblock %} 

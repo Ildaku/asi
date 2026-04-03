@@ -264,7 +264,7 @@ class CreateUserForm(FlaskForm):
 
     def validate_email(self, field):
         if User.query.filter_by(email=field.data).first():
-            raise ValidationError('Пользователь с таким email уже существует.')
+            raise ValidationError('Пользователь с таким email уже существует.') 
 
 class MonthlyPlanForm(FlaskForm):
     year = SelectField('Год', coerce=int, validators=[DataRequired()])
