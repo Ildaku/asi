@@ -93,9 +93,6 @@
         cursor: default;
         background-color: rgba(23, 79, 163, 0.06) !important;
     }
-    .managers-count-badge {
-        font-size: 0.9rem;
-    }
     .managers-empty-card {
         border: 1px dashed #cbd5e1 !important;
         background: #fafbfc;
@@ -149,20 +146,12 @@
         </div>
     </div>
     {% else %}
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
-        <span class="badge bg-secondary managers-count-badge">Показано планов: {{ plans|length }}</span>
-        {% if filter_product_id %}
-        <span class="text-muted small">Фильтр по продукту активен</span>
-        {% endif %}
-    </div>
-
     <div class="card shadow-sm managers-data-card">
         {% if not current_user.is_manager() %}
         <form method="post" class="m-0">
             {{ form.csrf_token }}
             <input type="hidden" name="filter_product_id" value="{{ filter_product_id or '' }}">
-            <div class="card-header py-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
-                <span class="small text-muted mb-0"><i class="fas fa-edit me-1"></i>Изменения сохраняются кнопкой ниже</span>
+            <div class="card-header py-2 d-flex justify-content-end align-items-center">
                 {{ form.submit(class="btn btn-primary btn-sm") }}
             </div>
         {% else %}
