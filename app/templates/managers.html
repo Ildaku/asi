@@ -7,12 +7,41 @@
     .managers-dashboard-wrap {
         width: 100%;
         max-width: 100%;
+        padding-bottom: 2rem;
+    }
+    .managers-page-title {
+        color: var(--main-blue-dark);
+        font-weight: 700;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1rem;
+        border-bottom: 3px solid var(--main-blue);
+    }
+    .managers-toolbar-card {
+        background: #fff;
+        border: 1px solid #e2e8f0 !important;
+    }
+    .managers-toolbar-card .form-label {
+        color: #495057;
+        font-weight: 600;
+    }
+    .managers-data-card {
+        background: #fff;
+        border: 1px solid #e2e8f0 !important;
+        overflow: hidden;
+    }
+    .managers-data-card .card-header {
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .managers-table-scroll {
+        max-height: min(72vh, 880px);
+        overflow: auto;
     }
     .managers-dashboard-table {
         table-layout: fixed;
         width: 100%;
-        font-size: 0.8125rem;
+        font-size: 0.875rem;
         margin-bottom: 0;
+        font-variant-numeric: tabular-nums;
     }
     .managers-dashboard-table th,
     .managers-dashboard-table td {
@@ -21,21 +50,55 @@
         word-wrap: break-word;
         overflow-wrap: break-word;
         hyphens: auto;
-        padding: 0.35rem 0.3rem;
+        padding: 0.45rem 0.35rem;
     }
-    .managers-dashboard-table thead th {
-        font-weight: 600;
-        line-height: 1.2;
+    /* Перекрываем глобальный тёмный thead из base.html только здесь */
+    body .managers-data-card .managers-dashboard-table thead th {
+        background-color: var(--main-blue-light) !important;
+        color: #1a1a1a !important;
+        border-color: #dee2e6 !important;
+    }
+    body .managers-data-card .managers-dashboard-table thead tr:first-child th.managers-th-prod {
+        background-color: #dbeafe !important;
+        color: #0f172a !important;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
+    body .managers-data-card .managers-dashboard-table thead tr:first-child th.managers-th-okk {
+        background-color: #d1fae5 !important;
+        color: #0f172a !important;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
+    body .managers-data-card .managers-dashboard-table thead tr:nth-child(2) th:nth-child(-n+7) {
+        background-color: #f0f6fc !important;
+    }
+    body .managers-data-card .managers-dashboard-table thead tr:nth-child(2) th:nth-child(n+8) {
+        background-color: #f4faf7 !important;
+    }
+    .managers-dashboard-table tbody td:nth-child(7) {
+        border-right: 2px solid var(--main-blue);
     }
     .managers-dashboard-table .form-control-sm {
         min-width: 0;
         width: 100%;
         max-width: 100%;
         padding: 0.2rem 0.15rem;
-        font-size: 0.72rem;
+        font-size: 0.78rem;
     }
     .managers-dashboard-table input[type="date"] {
         max-width: 100%;
+    }
+    .managers-data-card .managers-dashboard-table.table-hover tbody tr:hover {
+        cursor: default;
+        background-color: rgba(23, 79, 163, 0.06) !important;
+    }
+    .managers-count-badge {
+        font-size: 0.9rem;
+    }
+    .managers-empty-card {
+        border: 1px dashed #cbd5e1 !important;
+        background: #fafbfc;
     }
 </style>
 {% endblock %}
@@ -51,152 +114,179 @@
 
 {% block content %}
 <div class="managers-dashboard-wrap mt-2 mb-4">
-    <h2 class="mb-3">Для менеджеров</h2>
+    <h2 class="managers-page-title">Для менеджеров</h2>
 
-    <form method="get" class="row g-2 align-items-end mb-3" action="{{ url_for('managers_dashboard') }}">
-        <div class="col-12 col-md-5 col-lg-4">
-            <label for="filter-product" class="form-label small mb-0">Продукт</label>
-            <select id="filter-product" name="product_id" class="form-select form-select-sm">
-                <option value="">Все продукты</option>
-                {% for p in products %}
-                <option value="{{ p.id }}" {% if filter_product_id == p.id %}selected{% endif %}>{{ p.name }}</option>
-                {% endfor %}
-            </select>
+    <div class="card shadow-sm managers-toolbar-card mb-3">
+        <div class="card-body py-3">
+            <form method="get" class="row g-3 align-items-end" action="{{ url_for('managers_dashboard') }}">
+                <div class="col-12 col-md-5 col-lg-4">
+                    <label for="filter-product" class="form-label small mb-1">Продукт</label>
+                    <select id="filter-product" name="product_id" class="form-select form-select-sm">
+                        <option value="">Все продукты</option>
+                        {% for p in products %}
+                        <option value="{{ p.id }}" {% if filter_product_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-auto d-flex flex-wrap gap-2 ms-md-auto">
+                    <button type="submit" class="btn btn-primary btn-sm px-3">Применить фильтр</button>
+                    <a href="{{ url_for('managers_dashboard') }}" class="btn btn-outline-secondary btn-sm">Сбросить</a>
+                    <a href="{% if filter_product_id %}{{ url_for('export_managers_dashboard', product_id=filter_product_id) }}{% else %}{{ url_for('export_managers_dashboard') }}{% endif %}"
+                       class="btn btn-success btn-sm">
+                        <i class="fas fa-file-excel"></i> Выгрузка в Excel
+                    </a>
+                </div>
+            </form>
         </div>
-        <div class="col-12 col-md-auto d-flex flex-wrap gap-2">
-            <button type="submit" class="btn btn-outline-primary btn-sm">Применить фильтр</button>
-            <a href="{{ url_for('managers_dashboard') }}" class="btn btn-outline-secondary btn-sm">Сбросить</a>
-            <a href="{% if filter_product_id %}{{ url_for('export_managers_dashboard', product_id=filter_product_id) }}{% else %}{{ url_for('export_managers_dashboard') }}{% endif %}"
-               class="btn btn-success btn-sm">
-                <i class="fas fa-file-excel"></i> Выгрузка в Excel
-            </a>
-        </div>
-    </form>
+    </div>
 
     {% if not plans %}
-    <div class="alert alert-info mb-0">Нет планов для отображения по выбранным условиям.</div>
-    {% else %}
-    {% if not current_user.is_manager() %}
-    <form method="post" class="mb-3">
-        {{ form.csrf_token }}
-        <input type="hidden" name="filter_product_id" value="{{ filter_product_id or '' }}">
-        <div class="mb-2">
-            {{ form.submit(class="btn btn-primary btn-sm") }}
+    <div class="card shadow-sm managers-empty-card">
+        <div class="card-body text-center py-5 text-muted">
+            <i class="fas fa-inbox fa-2x mb-3 d-block opacity-50"></i>
+            <p class="mb-0">Нет планов для отображения по выбранным условиям.<br>
+            <span class="small">Измените фильтр по продукту или сбросьте его.</span></p>
         </div>
-        <table class="table table-bordered table-sm align-middle managers-dashboard-table">
-    {% else %}
-    <div class="mb-3">
-        <table class="table table-bordered table-sm align-middle managers-dashboard-table">
-    {% endif %}
-            <colgroup>
-                <col style="width: 11%;">
-                <col style="width: 8%;">
-                <col style="width: 6%;">
-                <col style="width: 8%;">
-                <col style="width: 7%;">
-                <col style="width: 10%;">
-                <col style="width: 7%;">
-                <col style="width: 8%;">
-                <col style="width: 8%;">
-                <col style="width: 7%;">
-                <col style="width: 10%;">
-            </colgroup>
-            <thead class="table-light">
-                <tr>
-                    <th colspan="7" class="text-center">Производство</th>
-                    <th colspan="4" class="text-center">ОКК</th>
-                </tr>
-                <tr>
-                    <th>Продукт</th>
-                    <th>Партия</th>
-                    <th>Кол-во,<br>кг</th>
-                    <th>Планируемая дата<br>производства</th>
-                    <th>Факт произв.,<br>дата</th>
-                    <th>Статус по<br>производству</th>
-                    <th>Место<br>партии</th>
-                    <th>Передано<br>в ОКК</th>
-                    <th>План заверш.<br>проверки (+5)</th>
-                    <th>Факт<br>проверки</th>
-                    <th>Статус ОКК</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for plan in plans %}
-                <tr>
-                    <td>
-                        {% if current_user.is_manager() %}
-                        {{ plan.product.name if plan.product else '—' }}
-                        {% else %}
-                        <a href="{{ url_for('production_plan_detail', plan_id=plan.id) }}">{{ plan.product.name if plan.product else '—' }}</a>
-                        {% endif %}
-                    </td>
-                    <td>{{ plan.batch_number or '—' }}</td>
-                    <td>{{ plan.quantity if plan.quantity is not none else '—' }}</td>
-                    <td>
-                        {% if current_user.is_admin() %}
-                        <input type="date" class="form-control form-control-sm"
-                               name="manager_planned_{{ plan.id }}"
-                               value="{{ plan.manager_planned_production_date.isoformat() if plan.manager_planned_production_date else '' }}">
-                        {% else %}
-                        {{ plan.manager_planned_production_date.strftime('%d.%m.%Y') if plan.manager_planned_production_date else '—' }}
-                        {% endif %}
-                    </td>
-                    <td>{{ plan.production_date.strftime('%d.%m.%Y') if plan.production_date else '—' }}</td>
-                    <td>
-                        {% if plan.status.name == 'APPROVED' %}
-                        <span class="badge bg-secondary">{{ plan.manager_production_status_label }}</span>
-                        {% elif plan.status.name == 'IN_PROGRESS' %}
-                        <span class="badge bg-primary">{{ plan.manager_production_status_label }}</span>
-                        {% elif plan.status.name == 'COMPLETED' %}
-                        <span class="badge bg-success">{{ plan.manager_production_status_label }}</span>
-                        {% else %}
-                        <span class="badge bg-info">{{ plan.manager_production_status_label }}</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ plan.manager_location_label }}</td>
-                    <td>
-                        {% if current_user.is_admin() %}
-                        <input type="date" class="form-control form-control-sm"
-                               name="handed_okk_{{ plan.id }}"
-                               value="{{ plan.handed_to_okk_date.isoformat() if plan.handed_to_okk_date else '' }}">
-                        {% else %}
-                        {{ plan.handed_to_okk_date.strftime('%d.%m.%Y') if plan.handed_to_okk_date else '—' }}
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if plan.manager_okk_planned_completion_date %}
-                        {{ plan.manager_okk_planned_completion_date.strftime('%d.%m.%Y') }}
-                        {% else %}
-                        —
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if current_user.is_admin() or current_user.is_operator() %}
-                        <input type="date" class="form-control form-control-sm"
-                               name="actual_okk_check_{{ plan.id }}"
-                               value="{{ plan.actual_okk_check_date.isoformat() if plan.actual_okk_check_date else '' }}">
-                        {% else %}
-                        {{ plan.actual_okk_check_date.strftime('%d.%m.%Y') if plan.actual_okk_check_date else '—' }}
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if plan.actual_okk_check_date %}
-                        <span class="badge bg-success">Одобрено</span>
-                        {% elif plan.handed_to_okk_date %}
-                        <span class="badge bg-warning text-dark">Проверка</span>
-                        {% else %}
-                        <span class="badge bg-light text-dark border">Ожидание</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% if not current_user.is_manager() %}
-    </form>
-    {% else %}
     </div>
-    {% endif %}
+    {% else %}
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+        <span class="badge bg-secondary managers-count-badge">Показано планов: {{ plans|length }}</span>
+        {% if filter_product_id %}
+        <span class="text-muted small">Фильтр по продукту активен</span>
+        {% endif %}
+    </div>
+
+    <div class="card shadow-sm managers-data-card">
+        {% if not current_user.is_manager() %}
+        <form method="post" class="m-0">
+            {{ form.csrf_token }}
+            <input type="hidden" name="filter_product_id" value="{{ filter_product_id or '' }}">
+            <div class="card-header py-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <span class="small text-muted mb-0"><i class="fas fa-edit me-1"></i>Изменения сохраняются кнопкой ниже</span>
+                {{ form.submit(class="btn btn-primary btn-sm") }}
+            </div>
+        {% else %}
+            <div class="card-header py-2 bg-light border-bottom">
+                <span class="small text-muted mb-0"><i class="fas fa-eye me-1"></i>Режим просмотра</span>
+            </div>
+        {% endif %}
+            <div class="managers-table-scroll">
+                <table class="table table-bordered table-sm align-middle managers-dashboard-table table-striped table-hover mb-0">
+                    <colgroup>
+                        <col style="width: 11%;">
+                        <col style="width: 8%;">
+                        <col style="width: 6%;">
+                        <col style="width: 8%;">
+                        <col style="width: 7%;">
+                        <col style="width: 10%;">
+                        <col style="width: 7%;">
+                        <col style="width: 8%;">
+                        <col style="width: 8%;">
+                        <col style="width: 7%;">
+                        <col style="width: 10%;">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th colspan="7" class="text-center managers-th-prod">Производство</th>
+                            <th colspan="4" class="text-center managers-th-okk">ОКК</th>
+                        </tr>
+                        <tr>
+                            <th>Продукт</th>
+                            <th>Партия</th>
+                            <th>Кол-во,<br>кг</th>
+                            <th>Планируемая дата<br>производства</th>
+                            <th>Факт произв.,<br>дата</th>
+                            <th>Статус по<br>производству</th>
+                            <th>Место<br>партии</th>
+                            <th>Передано<br>в ОКК</th>
+                            <th>План заверш.<br>проверки (+5)</th>
+                            <th>Факт<br>проверки</th>
+                            <th>Статус ОКК</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for plan in plans %}
+                        <tr>
+                            <td>
+                                {% if current_user.is_manager() %}
+                                <span class="fw-medium">{{ plan.product.name if plan.product else '—' }}</span>
+                                {% else %}
+                                <a href="{{ url_for('production_plan_detail', plan_id=plan.id) }}">{{ plan.product.name if plan.product else '—' }}</a>
+                                {% endif %}
+                            </td>
+                            <td>{{ plan.batch_number or '—' }}</td>
+                            <td>{{ plan.quantity if plan.quantity is not none else '—' }}</td>
+                            <td>
+                                {% if current_user.is_admin() %}
+                                <input type="date" class="form-control form-control-sm"
+                                       name="manager_planned_{{ plan.id }}"
+                                       value="{{ plan.manager_planned_production_date.isoformat() if plan.manager_planned_production_date else '' }}">
+                                {% else %}
+                                {{ plan.manager_planned_production_date.strftime('%d.%m.%Y') if plan.manager_planned_production_date else '—' }}
+                                {% endif %}
+                            </td>
+                            <td>{{ plan.production_date.strftime('%d.%m.%Y') if plan.production_date else '—' }}</td>
+                            <td>
+                                {% if plan.status.name == 'APPROVED' %}
+                                <span class="badge bg-secondary">{{ plan.manager_production_status_label }}</span>
+                                {% elif plan.status.name == 'IN_PROGRESS' %}
+                                <span class="badge bg-primary">{{ plan.manager_production_status_label }}</span>
+                                {% elif plan.status.name == 'COMPLETED' %}
+                                <span class="badge bg-success">{{ plan.manager_production_status_label }}</span>
+                                {% else %}
+                                <span class="badge bg-info">{{ plan.manager_production_status_label }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if plan.manager_location_label == 'Химки' %}
+                                <span class="badge bg-warning text-dark">Химки</span>
+                                {% else %}
+                                <span class="badge bg-light text-secondary border">Домодедово</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if current_user.is_admin() %}
+                                <input type="date" class="form-control form-control-sm"
+                                       name="handed_okk_{{ plan.id }}"
+                                       value="{{ plan.handed_to_okk_date.isoformat() if plan.handed_to_okk_date else '' }}">
+                                {% else %}
+                                {{ plan.handed_to_okk_date.strftime('%d.%m.%Y') if plan.handed_to_okk_date else '—' }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if plan.manager_okk_planned_completion_date %}
+                                {{ plan.manager_okk_planned_completion_date.strftime('%d.%m.%Y') }}
+                                {% else %}
+                                —
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if current_user.is_admin() or current_user.is_operator() %}
+                                <input type="date" class="form-control form-control-sm"
+                                       name="actual_okk_check_{{ plan.id }}"
+                                       value="{{ plan.actual_okk_check_date.isoformat() if plan.actual_okk_check_date else '' }}">
+                                {% else %}
+                                {{ plan.actual_okk_check_date.strftime('%d.%m.%Y') if plan.actual_okk_check_date else '—' }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if plan.actual_okk_check_date %}
+                                <span class="badge bg-success">Одобрено</span>
+                                {% elif plan.handed_to_okk_date %}
+                                <span class="badge bg-warning text-dark">Проверка</span>
+                                {% else %}
+                                <span class="badge bg-light text-dark border">Ожидание</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% if not current_user.is_manager() %}
+        </form>
+        {% endif %}
+    </div>
     {% endif %}
 </div>
 {% endblock %}
