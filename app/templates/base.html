@@ -98,6 +98,16 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto">
+                {% if user and user.is_manager() %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('managers_dashboard') }}"
+                       data-bs-toggle="tooltip" title="Сводка для менеджеров">Для менеджеров</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('yearly_planning') }}"
+                       data-bs-toggle="tooltip" title="Годовое планирование">Годовое планирование</a>
+                </li>
+                {% else %}
                 <li class="nav-item">
                     <a class="nav-link" href="/raw_materials"
                        data-bs-toggle="tooltip" title="Управление сырьем и его партиями">
@@ -122,6 +132,18 @@
                         Планы производства
                     </a>
                 </li>
+                {% if user and (user.is_admin() or user.is_operator()) %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('managers_dashboard') }}"
+                       data-bs-toggle="tooltip" title="Сводка для менеджеров по планам и ОКК">
+                        Для менеджеров
+                    </a>
+                </li>
+                {% endif %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('yearly_planning') }}"
+                       data-bs-toggle="tooltip" title="Годовое планирование">Годовое планирование</a>
+                </li>
                 <li class="nav-item">
                     <a class="nav-link" href="/reports"
                        data-bs-toggle="tooltip" title="Просмотр отчетов и аналитики">
@@ -136,6 +158,7 @@
                             </a>
                         </li>
                         {% endif %}
+                {% endif %}
             </ul>
             <ul class="navbar-nav ms-auto">
                 {% if user %}

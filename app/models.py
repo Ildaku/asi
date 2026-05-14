@@ -29,6 +29,7 @@ class PlanStatus(str, enum.Enum):
 class UserRole(str, enum.Enum):
     ADMIN = "admin"
     OPERATOR = "operator"
+    MANAGER = "manager"
 
 class HalalStatus(str, enum.Enum):
     HARAM = "haram"
@@ -129,6 +130,9 @@ class User(db.Model, UserMixin):
 
     def is_operator(self):
         return self.role == UserRole.OPERATOR
+
+    def is_manager(self):
+        return self.role == UserRole.MANAGER
 
 class Employee(db.Model):
     __tablename__ = "employees"

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, time as dtime
+from datetime import datetime, timedelta
 from flask import render_template, redirect, url_for, flash, request, jsonify, send_file
 from app import app, db
 from app.models import (
@@ -1461,60 +1461,48 @@ MANAGER_DASHBOARD_EXCLUDED_STATUSES = (
 )
 
 
-def _managers_build_query(filter_product_id, date_from_str, date_to_str):
+def _managers_build_query(filter_product_id):
+    """Тот же порядок, что на /production_plans: по дате создания, новые сверху."""
     query = (
-        ProductionPlan.query.join(Product)
-        .filter(~ProductionPlan.status.in_(MANAGER_DASHBOARD_EXCLUDED_STATUSES))
+        ProductionPlan.query.filter(
+            ~ProductionPlan.status.in_(MANAGER_DASHBOARD_EXCLUDED_STATUSES)
+        )
         .options(joinedload(ProductionPlan.product))
-        .order_by(Product.name.asc(), ProductionPlan.id.desc())
+        .order_by(ProductionPlan.created_at.desc())
     )
     if filter_product_id:
         query = query.filter(ProductionPlan.product_id == filter_product_id)
-    if date_from_str:
-        try:
-            df = datetime.strptime(str(date_from_str).strip()[:10], '%Y-%m-%d').date()
-            query = query.filter(
-                ProductionPlan.created_at >= datetime.combine(df, dtime.min)
-            )
-        except ValueError:
-            pass
-    if date_to_str:
-        try:
-            dt = datetime.strptime(str(date_to_str).strip()[:10], '%Y-%m-%d').date()
-            next_day = datetime.combine(dt, dtime.min) + timedelta(days=1)
-            query = query.filter(ProductionPlan.created_at < next_day)
-        except ValueError:
-            pass
     return query
 
 
 @app.route('/managers', methods=['GET', 'POST'])
-@operator_required
+@login_required
 def managers_dashboard():
     """Сводка для менеджеров: планы не в черновике / на утверждении / отменённые."""
     form = ManagersDashboardForm()
 
     if request.method == 'POST':
         filter_product_id = request.form.get('filter_product_id', type=int)
-        date_from_s = (request.form.get('filter_date_from') or '').strip()
-        date_to_s = (request.form.get('filter_date_to') or '').strip()
     else:
         filter_product_id = request.args.get('product_id', type=int)
-        date_from_s = (request.args.get('date_from') or '').strip()
-        date_to_s = (request.args.get('date_to') or '').strip()
 
-    query = _managers_build_query(filter_product_id, date_from_s, date_to_s)
+    query = _managers_build_query(filter_product_id)
     products = Product.query.order_by(Product.name.asc()).all()
 
     ctx = dict(
         form=form,
         products=products,
         filter_product_id=filter_product_id,
-        filter_date_from=date_from_s,
-        filter_date_to=date_to_s,
     )
 
     if request.method == 'POST':
+        if current_user.is_manager():
+            flash('Роль «Менеджер» может только просматривать эту страницу.', 'error')
+            rd = {}
+            if filter_product_id:
+                rd['product_id'] = filter_product_id
+            return redirect(url_for('managers_dashboard', **rd))
+
         if not form.validate_on_submit():
             flash('Ошибка проверки формы.', 'error')
             ctx['plans'] = query.all()
@@ -1540,10 +1528,6 @@ def managers_dashboard():
         rd = {}
         if filter_product_id:
             rd['product_id'] = filter_product_id
-        if date_from_s:
-            rd['date_from'] = date_from_s
-        if date_to_s:
-            rd['date_to'] = date_to_s
         return redirect(url_for('managers_dashboard', **rd))
 
     ctx['plans'] = query.all()
@@ -3197,3 +3181,31 @@ def analyze_users():
     except Exception as e:
         flash(f'Ошибка при анализе пользователей: {e}', 'error')
         return redirect(url_for('index'))
+
+
+# Роль «менеджер»: только просмотр разрешённых страниц (см. MANAGER_ALLOWED_ENDPOINTS).
+MANAGER_ALLOWED_ENDPOINTS = frozenset({
+    'index',
+    'managers_dashboard',
+    'yearly_planning',
+    'monthly_planning',
+    'export_yearly_plan',
+    'get_recipes_for_product',
+    'login',
+    'logout',
+    'static',
+})
+
+
+@app.before_request
+def _limit_manager_access():
+    if request.endpoint is None:
+        return
+    if not current_user.is_authenticated:
+        return
+    if not current_user.is_manager():
+        return
+    if request.endpoint in MANAGER_ALLOWED_ENDPOINTS:
+        return
+    flash('Этот раздел недоступен для роли «Менеджер».', 'error')
+    return redirect(url_for('managers_dashboard'))

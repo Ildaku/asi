@@ -54,7 +54,7 @@
     <h2 class="mb-3">Для менеджеров</h2>
 
     <form method="get" class="row g-2 align-items-end mb-3" action="{{ url_for('managers_dashboard') }}">
-        <div class="col-12 col-md-4 col-lg-3">
+        <div class="col-12 col-md-5 col-lg-4">
             <label for="filter-product" class="form-label small mb-0">Продукт</label>
             <select id="filter-product" name="product_id" class="form-select form-select-sm">
                 <option value="">Все продукты</option>
@@ -62,16 +62,6 @@
                 <option value="{{ p.id }}" {% if filter_product_id == p.id %}selected{% endif %}>{{ p.name }}</option>
                 {% endfor %}
             </select>
-        </div>
-        <div class="col-6 col-md-3 col-lg-2">
-            <label for="filter-date-from" class="form-label small mb-0">Дата внесения в план с</label>
-            <input id="filter-date-from" type="date" name="date_from" class="form-control form-control-sm"
-                   value="{{ filter_date_from }}">
-        </div>
-        <div class="col-6 col-md-3 col-lg-2">
-            <label for="filter-date-to" class="form-label small mb-0">по</label>
-            <input id="filter-date-to" type="date" name="date_to" class="form-control form-control-sm"
-                   value="{{ filter_date_to }}">
         </div>
         <div class="col-12 col-md-auto d-flex flex-wrap gap-2">
             <button type="submit" class="btn btn-outline-primary btn-sm">Применить фильтр</button>
@@ -82,15 +72,18 @@
     {% if not plans %}
     <div class="alert alert-info mb-0">Нет планов для отображения по выбранным условиям.</div>
     {% else %}
+    {% if not current_user.is_manager() %}
     <form method="post" class="mb-3">
         {{ form.csrf_token }}
         <input type="hidden" name="filter_product_id" value="{{ filter_product_id or '' }}">
-        <input type="hidden" name="filter_date_from" value="{{ filter_date_from }}">
-        <input type="hidden" name="filter_date_to" value="{{ filter_date_to }}">
         <div class="mb-2">
             {{ form.submit(class="btn btn-primary btn-sm") }}
         </div>
         <table class="table table-bordered table-sm align-middle managers-dashboard-table">
+    {% else %}
+    <div class="mb-3">
+        <table class="table table-bordered table-sm align-middle managers-dashboard-table">
+    {% endif %}
             <colgroup>
                 <col style="width: 11%;">
                 <col style="width: 8%;">
@@ -127,7 +120,11 @@
                 {% for plan in plans %}
                 <tr>
                     <td>
+                        {% if current_user.is_manager() %}
+                        {{ plan.product.name if plan.product else '—' }}
+                        {% else %}
                         <a href="{{ url_for('production_plan_detail', plan_id=plan.id) }}">{{ plan.product.name if plan.product else '—' }}</a>
+                        {% endif %}
                     </td>
                     <td>{{ plan.batch_number or '—' }}</td>
                     <td>{{ plan.quantity if plan.quantity is not none else '—' }}</td>
@@ -191,7 +188,11 @@
                 {% endfor %}
             </tbody>
         </table>
+    {% if not current_user.is_manager() %}
     </form>
+    {% else %}
+    </div>
+    {% endif %}
     {% endif %}
 </div>
 {% endblock %}

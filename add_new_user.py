@@ -52,9 +52,10 @@ def add_new_user():
         print("\nДоступные роли:")
         print("1. ADMIN - полные права (управление пользователями, рецептурами, всем)")
         print("2. OPERATOR - ограниченные права (создание планов, управление замесами)")
+        print("3. MANAGER - только «Для менеджеров» и «Годовое планирование» (просмотр)")
         
         while True:
-            role_choice = input("\nВыберите роль (1 или 2): ").strip()
+            role_choice = input("\nВыберите роль (1, 2 или 3): ").strip()
             if role_choice == "1":
                 role = UserRole.ADMIN
                 role_name = "ADMIN"
@@ -63,8 +64,12 @@ def add_new_user():
                 role = UserRole.OPERATOR
                 role_name = "OPERATOR"
                 break
+            elif role_choice == "3":
+                role = UserRole.MANAGER
+                role_name = "MANAGER"
+                break
             else:
-                print("❌ Введите 1 или 2")
+                print("❌ Введите 1, 2 или 3")
         
         # Создание пользователя
         try:
