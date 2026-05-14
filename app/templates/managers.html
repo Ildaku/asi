@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Для менеджеров | Planner2{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Главная</a></li>
+        <li class="breadcrumb-item active">Для менеджеров</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-3 mb-5">
+    <h2 class="mb-3">Для менеджеров</h2>
+    <p class="text-muted small mb-3">
+        Данные по планам в статусах «утверждён», «в производстве», «завершён» (без черновиков, «на утверждении» и отменённых).
+        Местонахождение «Химки» после отметки «Забран» на странице
+        <a href="{{ url_for('warehouse_production') }}">Склад производства</a>.
+    </p>
+    <p class="small mb-2">
+        <span class="text-danger">*</span> Готовность к отгрузке смотрите в колонке «Статус проверки ОКК»:
+        продукт готов к отгрузке при статусе <strong>«Одобрено»</strong>; при <strong>«Проверка»</strong> — на карантине.
+    </p>
+
+    {% if not plans %}
+    <div class="alert alert-info">Нет планов для отображения.</div>
+    {% else %}
+    <form method="post" class="mb-3">
+        {{ form.csrf_token }}
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th colspan="7" class="text-center">Производство</th>
+                        <th colspan="4" class="text-center">ОКК</th>
+                    </tr>
+                    <tr>
+                        <th>Продукт</th>
+                        <th>Партия</th>
+                        <th>Кол-во, кг</th>
+                        <th>Планируемая дата производства</th>
+                        <th>Факт производства, дата</th>
+                        <th>Статус по производству</th>
+                        <th>Местонахождение партии</th>
+                        <th>Передано в ОКК, дата</th>
+                        <th>План завершения проверки (5 к.д.)</th>
+                        <th>Факт проверки, дата</th>
+                        <th>Статус проверки ОКК</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for plan in plans %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('production_plan_detail', plan_id=plan.id) }}">{{ plan.product.name if plan.product else '—' }}</a>
+                        </td>
+                        <td>{{ plan.batch_number or '—' }}</td>
+                        <td>{{ plan.quantity if plan.quantity is not none else '—' }}</td>
+                        <td>
+                            {% if current_user.is_admin() %}
+                            <input type="date" class="form-control form-control-sm"
+                                   name="manager_planned_{{ plan.id }}"
+                                   value="{{ plan.manager_planned_production_date.isoformat() if plan.manager_planned_production_date else '' }}">
+                            {% else %}
+                            {{ plan.manager_planned_production_date.strftime('%d.%m.%Y') if plan.manager_planned_production_date else '—' }}
+                            {% endif %}
+                        </td>
+                        <td>{{ plan.production_date.strftime('%d.%m.%Y') if plan.production_date else '—' }}</td>
+                        <td>
+                            {% if plan.status.name == 'APPROVED' %}
+                            <span class="badge bg-secondary">{{ plan.manager_production_status_label }}</span>
+                            {% elif plan.status.name == 'IN_PROGRESS' %}
+                            <span class="badge bg-primary">{{ plan.manager_production_status_label }}</span>
+                            {% elif plan.status.name == 'COMPLETED' %}
+                            <span class="badge bg-success">{{ plan.manager_production_status_label }}</span>
+                            {% else %}
+                            <span class="badge bg-info">{{ plan.manager_production_status_label }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ plan.manager_location_label }}</td>
+                        <td>
+                            {% if current_user.is_admin() %}
+                            <input type="date" class="form-control form-control-sm"
+                                   name="handed_okk_{{ plan.id }}"
+                                   value="{{ plan.handed_to_okk_date.isoformat() if plan.handed_to_okk_date else '' }}">
+                            {% else %}
+                            {{ plan.handed_to_okk_date.strftime('%d.%m.%Y') if plan.handed_to_okk_date else '—' }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if plan.manager_okk_planned_completion_date %}
+                            {{ plan.manager_okk_planned_completion_date.strftime('%d.%m.%Y') }}
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if current_user.is_admin() or current_user.is_operator() %}
+                            <input type="date" class="form-control form-control-sm"
+                                   name="actual_okk_check_{{ plan.id }}"
+                                   value="{{ plan.actual_okk_check_date.isoformat() if plan.actual_okk_check_date else '' }}">
+                            {% else %}
+                            {{ plan.actual_okk_check_date.strftime('%d.%m.%Y') if plan.actual_okk_check_date else '—' }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if plan.okk_approved_on %}
+                            <span class="text-success fw-semibold">{{ plan.manager_okk_status_label }}</span>
+                            {% elif plan.handed_to_okk_date %}
+                            <span class="text-warning">{{ plan.manager_okk_status_label }}</span>
+                            {% else %}
+                            {{ plan.manager_okk_status_label }}
+                            {% endif %}
+                            {% if current_user.is_admin() or current_user.is_operator() %}
+                            <div class="mt-1 small text-muted">Дата одобрения</div>
+                            <input type="date" class="form-control form-control-sm"
+                                   name="okk_approved_{{ plan.id }}"
+                                   title="Заполните для статуса «Одобрено»; очистите поле и сохраните, чтобы снять одобрение"
+                                   value="{{ plan.okk_approved_on.isoformat() if plan.okk_approved_on else '' }}">
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-3">
+            {{ form.submit(class="btn btn-primary") }}
+        </div>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

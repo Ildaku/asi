@@ -329,4 +329,9 @@ class MonthlyPlanForm(FlaskForm):
                 product_id=field.data
             ).first()
             if existing and (not hasattr(self, '_edit_plan') or existing.id != self._edit_plan.id):
-                raise ValidationError('План для этого продукта в указанном месяце уже существует.') 
+                raise ValidationError('План для этого продукта в указанном месяце уже существует.')
+
+
+class ManagersDashboardForm(FlaskForm):
+    """Только CSRF и кнопка сохранения для страницы «Для менеджеров»."""
+    submit = SubmitField('Сохранить')

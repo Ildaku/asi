@@ -10,7 +10,8 @@ from app.forms import (
     RawMaterialForm, ProductForm, RecipeForm, RecipeIngredientForm,
     RawMaterialTypeForm, ProductionPlanForm, ProductionBatchForm,
     ProductionStatusForm, BatchIngredientForm, RawMaterialUsageReportForm,
-    ProductionStatisticsForm, LoginForm, AllergenTypeForm, EditRawMaterialTypeForm, MonthlyPlanForm, EditBatchProductionDateForm, EditBatchEmployeeForm, EmployeeForm
+    ProductionStatisticsForm, LoginForm, AllergenTypeForm, EditRawMaterialTypeForm, MonthlyPlanForm, EditBatchProductionDateForm, EditBatchEmployeeForm, EmployeeForm,
+    ManagersDashboardForm,
 )
 from app.utils import (
     create_excel_report, style_header_row, adjust_column_width,
@@ -1441,6 +1442,70 @@ def unmark_plan_picked_up(plan_id):
         flash('Этот план не был отмечен как забранный', 'info')
     
     return redirect(url_for('warehouse_production', filter='picked'))
+
+
+def _parse_optional_date_form_field(field_name):
+    raw = request.form.get(field_name)
+    if raw is None or str(raw).strip() == '':
+        return None
+    try:
+        return datetime.strptime(str(raw).strip()[:10], '%Y-%m-%d').date()
+    except ValueError:
+        return None
+
+
+MANAGER_DASHBOARD_EXCLUDED_STATUSES = (
+    PlanStatus.DRAFT,
+    PlanStatus.PENDING_APPROVAL,
+    PlanStatus.CANCELLED,
+)
+
+
+@app.route('/managers', methods=['GET', 'POST'])
+@operator_required
+def managers_dashboard():
+    """Сводка для менеджеров: планы не в черновике / на утверждении / отменённые."""
+    form = ManagersDashboardForm()
+    query = (
+        ProductionPlan.query.join(Product)
+        .filter(~ProductionPlan.status.in_(MANAGER_DASHBOARD_EXCLUDED_STATUSES))
+        .options(joinedload(ProductionPlan.product))
+        .order_by(Product.name.asc(), ProductionPlan.id.desc())
+    )
+
+    if request.method == 'POST':
+        if not form.validate_on_submit():
+            flash('Ошибка проверки формы.', 'error')
+            return render_template(
+                'managers.html',
+                plans=query.all(),
+                form=form,
+            )
+
+        plans = query.all()
+        for plan in plans:
+            pid = plan.id
+            if current_user.is_admin():
+                plan.manager_planned_production_date = _parse_optional_date_form_field(
+                    f'manager_planned_{pid}'
+                )
+                plan.handed_to_okk_date = _parse_optional_date_form_field(
+                    f'handed_okk_{pid}'
+                )
+            if current_user.is_admin() or current_user.is_operator():
+                plan.actual_okk_check_date = _parse_optional_date_form_field(
+                    f'actual_okk_check_{pid}'
+                )
+                plan.okk_approved_on = _parse_optional_date_form_field(
+                    f'okk_approved_{pid}'
+                )
+
+        db.session.commit()
+        flash('Данные сохранены.', 'success')
+        return redirect(url_for('managers_dashboard'))
+
+    return render_template('managers.html', plans=query.all(), form=form)
+
 
 @app.route('/reports/raw_material_usage', methods=['GET', 'POST'])
 @login_required

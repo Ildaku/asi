@@ -122,6 +122,14 @@
                         Планы производства
                     </a>
                 </li>
+                {% if user and (user.is_admin() or user.is_operator()) %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('managers_dashboard') }}"
+                       data-bs-toggle="tooltip" title="Сводка для менеджеров по планам и ОКК">
+                        Для менеджеров
+                    </a>
+                </li>
+                {% endif %}
                 <li class="nav-item">
                     <a class="nav-link" href="/reports"
                        data-bs-toggle="tooltip" title="Просмотр отчетов и аналитики">

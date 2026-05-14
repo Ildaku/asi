@@ -1,4 +1,5 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float, DateTime, Enum as SQLAlchemyEnum, Numeric, Table, UniqueConstraint, TypeDecorator
+from datetime import date, timedelta
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float, DateTime, Date, Enum as SQLAlchemyEnum, Numeric, Table, UniqueConstraint, TypeDecorator
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from . import db
@@ -280,6 +281,11 @@ class ProductionPlan(db.Model):
     notes = Column(String)
     production_date = Column(DateTime(timezone=True), nullable=True)  # Дата фактического производства
     picked_up_at = Column(DateTime(timezone=True), nullable=True)  # Дата/время забора со склада производства
+    # Поля панели «Для менеджеров» (не влияют на расчёты плана)
+    manager_planned_production_date = Column(Date, nullable=True)
+    handed_to_okk_date = Column(Date, nullable=True)
+    actual_okk_check_date = Column(Date, nullable=True)
+    okk_approved_on = Column(Date, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     created_by = Column(Integer, ForeignKey("users.id"))
@@ -287,6 +293,31 @@ class ProductionPlan(db.Model):
     product = relationship("Product", back_populates="production_plans")
     template = relationship("RecipeTemplate", back_populates="production_plans")
     batches = relationship("ProductionBatch", back_populates="plan", cascade="all, delete-orphan")
+
+    @property
+    def manager_production_status_label(self) -> str:
+        if self.status == PlanStatus.APPROVED:
+            return "Подготовка сырья"
+        return self.status.display
+
+    @property
+    def manager_location_label(self) -> str:
+        return "Химки" if self.picked_up_at else "Домодедово"
+
+    @property
+    def manager_okk_status_label(self) -> str:
+        if self.okk_approved_on:
+            return f"Одобрено {self.okk_approved_on.strftime('%d.%m.%y')}"
+        if self.handed_to_okk_date:
+            return "Проверка"
+        return "Ожидание"
+
+    @property
+    def manager_okk_planned_completion_date(self):
+        """План завершения проверки ОКК: +5 календарных дней от даты передачи в ОКК."""
+        if self.handed_to_okk_date:
+            return self.handed_to_okk_date + timedelta(days=5)
+        return None
 
     def get_progress(self):
         """Возвращает процент выполнения плана"""
