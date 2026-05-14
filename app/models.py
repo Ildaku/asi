@@ -306,8 +306,8 @@ class ProductionPlan(db.Model):
 
     @property
     def manager_okk_status_label(self) -> str:
-        if self.okk_approved_on:
-            return f"Одобрено {self.okk_approved_on.strftime('%d.%m.%y')}"
+        if self.actual_okk_check_date:
+            return "Одобрено"
         if self.handed_to_okk_date:
             return "Проверка"
         return "Ожидание"

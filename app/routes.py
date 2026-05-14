@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time as dtime
 from flask import render_template, redirect, url_for, flash, request, jsonify, send_file
 from app import app, db
 from app.models import (
@@ -1461,26 +1461,64 @@ MANAGER_DASHBOARD_EXCLUDED_STATUSES = (
 )
 
 
-@app.route('/managers', methods=['GET', 'POST'])
-@operator_required
-def managers_dashboard():
-    """Сводка для менеджеров: планы не в черновике / на утверждении / отменённые."""
-    form = ManagersDashboardForm()
+def _managers_build_query(filter_product_id, date_from_str, date_to_str):
     query = (
         ProductionPlan.query.join(Product)
         .filter(~ProductionPlan.status.in_(MANAGER_DASHBOARD_EXCLUDED_STATUSES))
         .options(joinedload(ProductionPlan.product))
         .order_by(Product.name.asc(), ProductionPlan.id.desc())
     )
+    if filter_product_id:
+        query = query.filter(ProductionPlan.product_id == filter_product_id)
+    if date_from_str:
+        try:
+            df = datetime.strptime(str(date_from_str).strip()[:10], '%Y-%m-%d').date()
+            query = query.filter(
+                ProductionPlan.created_at >= datetime.combine(df, dtime.min)
+            )
+        except ValueError:
+            pass
+    if date_to_str:
+        try:
+            dt = datetime.strptime(str(date_to_str).strip()[:10], '%Y-%m-%d').date()
+            next_day = datetime.combine(dt, dtime.min) + timedelta(days=1)
+            query = query.filter(ProductionPlan.created_at < next_day)
+        except ValueError:
+            pass
+    return query
+
+
+@app.route('/managers', methods=['GET', 'POST'])
+@operator_required
+def managers_dashboard():
+    """Сводка для менеджеров: планы не в черновике / на утверждении / отменённые."""
+    form = ManagersDashboardForm()
+
+    if request.method == 'POST':
+        filter_product_id = request.form.get('filter_product_id', type=int)
+        date_from_s = (request.form.get('filter_date_from') or '').strip()
+        date_to_s = (request.form.get('filter_date_to') or '').strip()
+    else:
+        filter_product_id = request.args.get('product_id', type=int)
+        date_from_s = (request.args.get('date_from') or '').strip()
+        date_to_s = (request.args.get('date_to') or '').strip()
+
+    query = _managers_build_query(filter_product_id, date_from_s, date_to_s)
+    products = Product.query.order_by(Product.name.asc()).all()
+
+    ctx = dict(
+        form=form,
+        products=products,
+        filter_product_id=filter_product_id,
+        filter_date_from=date_from_s,
+        filter_date_to=date_to_s,
+    )
 
     if request.method == 'POST':
         if not form.validate_on_submit():
             flash('Ошибка проверки формы.', 'error')
-            return render_template(
-                'managers.html',
-                plans=query.all(),
-                form=form,
-            )
+            ctx['plans'] = query.all()
+            return render_template('managers.html', **ctx)
 
         plans = query.all()
         for plan in plans:
@@ -1496,15 +1534,20 @@ def managers_dashboard():
                 plan.actual_okk_check_date = _parse_optional_date_form_field(
                     f'actual_okk_check_{pid}'
                 )
-                plan.okk_approved_on = _parse_optional_date_form_field(
-                    f'okk_approved_{pid}'
-                )
 
         db.session.commit()
         flash('Данные сохранены.', 'success')
-        return redirect(url_for('managers_dashboard'))
+        rd = {}
+        if filter_product_id:
+            rd['product_id'] = filter_product_id
+        if date_from_s:
+            rd['date_from'] = date_from_s
+        if date_to_s:
+            rd['date_to'] = date_to_s
+        return redirect(url_for('managers_dashboard', **rd))
 
-    return render_template('managers.html', plans=query.all(), form=form)
+    ctx['plans'] = query.all()
+    return render_template('managers.html', **ctx)
 
 
 @app.route('/reports/raw_material_usage', methods=['GET', 'POST'])
