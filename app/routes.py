@@ -24,6 +24,7 @@ from app.decorators import admin_required, operator_required
 from flask_migrate import upgrade
 import subprocess
 from openpyxl import Workbook
+from openpyxl.utils import get_column_letter
 from io import BytesIO
 from docx import Document
 from docx.shared import Pt, Inches
@@ -1532,6 +1533,83 @@ def managers_dashboard():
 
     ctx['plans'] = query.all()
     return render_template('managers.html', **ctx)
+
+
+def _format_date_dmy(value):
+    """Дата/время в формате ДД.ММ.ГГГГ для Excel и отчётов."""
+    if value is None:
+        return ""
+    if hasattr(value, "strftime"):
+        return value.strftime("%d.%m.%Y")
+    return str(value)
+
+
+@app.route("/managers/export")
+@login_required
+def export_managers_dashboard():
+    """Выгрузка таблицы «Для менеджеров» в Excel (с учётом фильтра по продукту)."""
+    filter_product_id = request.args.get("product_id", type=int)
+    plans = _managers_build_query(filter_product_id).all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Для менеджеров"
+
+    headers = (
+        "Продукт",
+        "Партия",
+        "Кол-во, кг",
+        "Планируемая дата производства",
+        "Факт производства, дата",
+        "Статус по производству",
+        "Местонахождение партии",
+        "Передано в ОКК, дата",
+        "План завершения проверки (+5 к.д.)",
+        "Факт проверки, дата",
+        "Статус ОКК",
+    )
+    for col, title in enumerate(headers, start=1):
+        ws.cell(row=1, column=col, value=title)
+
+    for r, plan in enumerate(plans, start=2):
+        if plan.actual_okk_check_date:
+            okk_status = "Одобрено"
+        elif plan.handed_to_okk_date:
+            okk_status = "Проверка"
+        else:
+            okk_status = "Ожидание"
+
+        planned_okk = ""
+        if plan.manager_okk_planned_completion_date:
+            planned_okk = plan.manager_okk_planned_completion_date.strftime("%d.%m.%Y")
+
+        ws.cell(row=r, column=1, value=plan.product.name if plan.product else "—")
+        ws.cell(row=r, column=2, value=plan.batch_number or "—")
+        ws.cell(row=r, column=3, value=plan.quantity if plan.quantity is not None else "")
+        ws.cell(row=r, column=4, value=_format_date_dmy(plan.manager_planned_production_date))
+        ws.cell(row=r, column=5, value=_format_date_dmy(plan.production_date))
+        ws.cell(row=r, column=6, value=plan.manager_production_status_label)
+        ws.cell(row=r, column=7, value=plan.manager_location_label)
+        ws.cell(row=r, column=8, value=_format_date_dmy(plan.handed_to_okk_date))
+        ws.cell(row=r, column=9, value=planned_okk)
+        ws.cell(row=r, column=10, value=_format_date_dmy(plan.actual_okk_check_date))
+        ws.cell(row=r, column=11, value=okk_status)
+
+    for col in range(1, 12):
+        letter = get_column_letter(col)
+        ws.column_dimensions[letter].width = 28 if col == 1 else 18
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    fname = f"dlya_menedzherov_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    return send_file(
+        output,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=fname,
+    )
 
 
 @app.route('/reports/raw_material_usage', methods=['GET', 'POST'])
@@ -3187,6 +3265,7 @@ def analyze_users():
 MANAGER_ALLOWED_ENDPOINTS = frozenset({
     'index',
     'managers_dashboard',
+    'export_managers_dashboard',
     'yearly_planning',
     'monthly_planning',
     'export_yearly_plan',

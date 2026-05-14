@@ -66,6 +66,10 @@
         <div class="col-12 col-md-auto d-flex flex-wrap gap-2">
             <button type="submit" class="btn btn-outline-primary btn-sm">Применить фильтр</button>
             <a href="{{ url_for('managers_dashboard') }}" class="btn btn-outline-secondary btn-sm">Сбросить</a>
+            <a href="{% if filter_product_id %}{{ url_for('export_managers_dashboard', product_id=filter_product_id) }}{% else %}{{ url_for('export_managers_dashboard') }}{% endif %}"
+               class="btn btn-success btn-sm">
+                <i class="fas fa-file-excel"></i> Выгрузка в Excel
+            </a>
         </div>
     </form>
 
