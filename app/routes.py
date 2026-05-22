@@ -2968,8 +2968,11 @@ def edit_product_recipe(product_id):
         # Берём первую рецептуру (или можно добавить выбор конкретной)
         recipe_template = product.recipe_templates[0]
         recipe_items = RecipeItem.query.filter_by(template_id=recipe_template.id).order_by(RecipeItem.id).all()
-        raw_material_types = RawMaterialType.query.order_by(RawMaterialType.name).all()
-        
+        raw_material_types = [
+            {'id': t.id, 'name': t.name}
+            for t in RawMaterialType.query.order_by(RawMaterialType.name).all()
+        ]
+
         return render_template(
             'edit_product_recipe.html',
             product=product,
