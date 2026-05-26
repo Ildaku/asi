@@ -12,6 +12,7 @@ from app.forms import (
     ProductionStatusForm, BatchIngredientForm, RawMaterialUsageReportForm,
     ProductionStatisticsForm, LoginForm, AllergenTypeForm, EditRawMaterialTypeForm, MonthlyPlanForm, EditBatchProductionDateForm, EditBatchEmployeeForm, EmployeeForm,
     ManagersDashboardForm,
+    RecipeHalalForm,
 )
 from app.utils import (
     create_excel_report, style_header_row, adjust_column_width,
@@ -29,6 +30,15 @@ from io import BytesIO
 from docx import Document
 from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+def _halal_status_from_form(raw):
+    if raw is None or str(raw).strip() == '':
+        return None
+    try:
+        return HalalStatus(str(raw).strip())
+    except ValueError:
+        return None
+
 
 @app.route('/')
 @login_required
@@ -424,9 +434,10 @@ def recipes():
             return redirect(url_for('recipes'))
         
         recipe = Recipe(
-            name=form.name.data, 
+            name=form.name.data,
             product_id=form.product_id.data,
-            status='draft'
+            status='draft',
+            halal_status=_halal_status_from_form(form.halal_status.data),
         )
         db.session.add(recipe)
         db.session.commit()
@@ -458,25 +469,32 @@ def delete_recipe(id):
 @login_required
 def recipe_ingredients(recipe_id):
     recipe = Recipe.query.get_or_404(recipe_id)
-    
-    # Для сохраненных рецептур запрещаем только модификации
-    if recipe.status == 'saved' and request.method == 'POST':
-        flash('Эта рецептура уже сохранена и не может быть изменена.', 'warning')
-        return redirect(url_for('recipe_ingredients', recipe_id=recipe_id))
-        
+
+    halal_form = RecipeHalalForm()
+    if recipe.halal_status:
+        halal_form.halal_status.data = recipe.halal_status.value
+
     form = RecipeIngredientForm()
     form.recipe = recipe  # для валидации
-    
-    # Получаем список типов сырья
+
     raw_material_types = RawMaterialType.query.all()
     form.material_type_id.choices = [(rmt.id, rmt.name) for rmt in raw_material_types]
-    
+
     if request.method == 'POST':
-        # Проверяем права на модификацию
         if not current_user.is_admin():
             flash('Доступ запрещен. Требуются права администратора для изменения рецептуры.', 'error')
             return redirect(url_for('recipe_ingredients', recipe_id=recipe_id))
-        
+
+        if request.form.get('update_halal') == '1':
+            recipe.halal_status = _halal_status_from_form(request.form.get('halal_status'))
+            db.session.commit()
+            flash('Статус Халяль/Харам рецептуры сохранён.', 'success')
+            return redirect(url_for('recipe_ingredients', recipe_id=recipe_id))
+
+        if recipe.status == 'saved':
+            flash('Эта рецептура уже сохранена и не может быть изменена.', 'warning')
+            return redirect(url_for('recipe_ingredients', recipe_id=recipe_id))
+
         if 'save_recipe' in request.form:  # Нажата кнопка "Сохранить рецептуру"
             total_percent = sum(item.percentage for item in recipe.recipe_items)
             if not recipe.recipe_items:
@@ -520,10 +538,11 @@ def recipe_ingredients(recipe_id):
     total_percent = sum(item.percentage for item in ingredients)
     return render_template(
         'recipe_ingredients.html',
-        form=form if recipe.status != 'saved' else None,  # Не показываем форму для сохраненных рецептур
+        form=form if recipe.status != 'saved' else None,
+        halal_form=halal_form,
         recipe=recipe,
         ingredients=ingredients,
-        total_percent=total_percent
+        total_percent=total_percent,
     )
 
 @app.route('/recipes/<int:recipe_id>/ingredients/<int:ingredient_id>/delete', methods=['POST'])
@@ -2211,6 +2230,7 @@ def export_plan_to_word(plan_id):
     doc.add_paragraph('Номер партии: ' + (plan.batch_number or 'Не указан'))
     doc.add_paragraph('Количество: ' + f"{plan.quantity:.2f} кг")
     doc.add_paragraph('Статус: ' + plan.status.display)
+    doc.add_paragraph('Халяль/харам: ' + plan.get_halal_status())
     doc.add_paragraph('')  # Пустая строка
     
     # Замесы
@@ -2989,7 +3009,24 @@ def edit_product_recipe(product_id):
                 return redirect(url_for('products'))
             
             recipe_template = product.recipe_templates[0]
-            
+            recipe_template.halal_status = _halal_status_from_form(
+                request.form.get('halal_status')
+            )
+
+            active_plans = ProductionPlan.query.filter(
+                ProductionPlan.product_id == product_id,
+                ProductionPlan.status.in_([PlanStatus.APPROVED, PlanStatus.IN_PROGRESS]),
+            ).first()
+
+            if active_plans:
+                db.session.commit()
+                flash(
+                    'Статус Халяль/Харам сохранён. Состав рецептуры нельзя менять: '
+                    'продукт используется в активных планах производства.',
+                    'warning',
+                )
+                return redirect(url_for('edit_product_recipe', product_id=product_id))
+
             # Получаем данные из формы
             material_type_ids = request.form.getlist('material_type_id[]')
             percentages = request.form.getlist('percentage[]')
@@ -3025,17 +3062,7 @@ def edit_product_recipe(product_id):
             if len(set(material_type_ids)) != len(material_type_ids):
                 flash('Каждый тип сырья может быть указан только один раз', 'error')
                 return redirect(url_for('edit_product_recipe', product_id=product_id))
-            
-            # Проверяем, не используется ли продукт в активных планах
-            active_plans = ProductionPlan.query.filter(
-                ProductionPlan.product_id == product_id,
-                ProductionPlan.status.in_([PlanStatus.APPROVED, PlanStatus.IN_PROGRESS])
-            ).first()
-            
-            if active_plans:
-                flash('Нельзя изменять рецептуру продукта, который используется в активных планах производства', 'error')
-                return redirect(url_for('edit_product_recipe', product_id=product_id))
-            
+
             # Начинаем транзакцию
             db.session.begin()
             

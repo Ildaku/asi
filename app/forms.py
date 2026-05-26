@@ -92,9 +92,22 @@ class ProductForm(FlaskForm):
     name = StringField('Название продукта', validators=[DataRequired()])
     submit = SubmitField('Добавить продукт')
 
+HALAL_STATUS_FORM_CHOICES = [
+    ('', 'Не указано'),
+    (HalalStatus.HARAM.value, HalalStatus.HARAM.display),
+    (HalalStatus.HALAL.value, HalalStatus.HALAL.display),
+]
+
+
 class RecipeForm(FlaskForm):
     name = StringField('Название рецептуры', validators=[DataRequired()])
     product_id = SelectField('Продукт', coerce=int, validators=[DataRequired()])
+    halal_status = SelectField(
+        'Халяль/Харам',
+        coerce=str,
+        validators=[Optional()],
+        choices=HALAL_STATUS_FORM_CHOICES,
+    )
     submit = SubmitField('Добавить рецептуру')
 
     def validate_name(self, field):
@@ -106,6 +119,17 @@ class RecipeForm(FlaskForm):
             ).first()
             if exists:
                 raise ValidationError('Рецептура с таким названием уже существует для выбранного продукта.')
+
+class RecipeHalalForm(FlaskForm):
+    """Статус халяль/харам рецептуры (можно менять и у сохранённой рецептуры)."""
+    halal_status = SelectField(
+        'Халяль/Харам',
+        coerce=str,
+        validators=[Optional()],
+        choices=HALAL_STATUS_FORM_CHOICES,
+    )
+    submit = SubmitField('Сохранить статус')
+
 
 class RecipeIngredientForm(FlaskForm):
     material_type_id = SelectField('Вид сырья', coerce=int, validators=[DataRequired()])

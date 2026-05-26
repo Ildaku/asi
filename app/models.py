@@ -251,6 +251,7 @@ class RecipeTemplate(db.Model):
     name = Column(String)
     is_default = Column(Boolean, default=False)
     status = Column(String, default="draft")  # draft, saved
+    halal_status = Column(HalalStatusType(), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     created_by = Column(Integer, ForeignKey("users.id"))
@@ -258,6 +259,12 @@ class RecipeTemplate(db.Model):
     product = relationship("Product", back_populates="recipe_templates")
     recipe_items = relationship("RecipeItem", back_populates="template")
     production_plans = relationship("ProductionPlan", back_populates="template")
+
+    @property
+    def halal_status_display(self):
+        if self.halal_status:
+            return self.halal_status.display
+        return "Не указано"
 
 class RecipeItem(db.Model):
     __tablename__ = "recipe_items"
@@ -398,32 +405,10 @@ class ProductionPlan(db.Model):
         return sorted(list(allergens))
     
     def get_halal_status(self):
-        """Возвращает статус Харам/Халяль для плана производства
-        
-        Returns:
-            str: "Харам" если есть хотя бы одно сырьё со статусом Харам,
-                 "Халяль" если все сырьё Халяль,
-                 "Не указано" если нет сырья со статусом или все не указано
-        """
-        if not self.template or not self.template.recipe_items:
+        """Статус Халяль/Харам плана — только из рецептуры (шаблона), не из сырья."""
+        if not self.template:
             return "Не указано"
-        
-        has_haram = False
-        has_halal = False
-        
-        for ingredient in self.template.recipe_items:
-            status = ingredient.material_type.halal_status
-            if status == HalalStatus.HARAM:
-                has_haram = True
-            elif status == HalalStatus.HALAL:
-                has_halal = True
-        
-        if has_haram:
-            return "Харам"
-        elif has_halal:
-            return "Халяль"
-        else:
-            return "Не указано"
+        return self.template.halal_status_display
     
     def get_mass_control_status(self):
         """Возвращает статус Контроля массы для плана производства

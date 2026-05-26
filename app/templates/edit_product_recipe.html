@@ -32,6 +32,16 @@
         </div>
         <div class="card-body">
             <form method="POST" id="recipeForm">
+                <div class="row mb-3">
+                    <div class="col-md-6 col-lg-4">
+                        <label for="halal_status" class="form-label">Халяль/Харам (рецептура)</label>
+                        <select name="halal_status" id="halal_status" class="form-select">
+                            <option value="" {% if not recipe_template.halal_status %}selected{% endif %}>Не указано</option>
+                            <option value="haram" {% if recipe_template.halal_status and recipe_template.halal_status.value == 'haram' %}selected{% endif %}>Харам</option>
+                            <option value="halal" {% if recipe_template.halal_status and recipe_template.halal_status.value == 'halal' %}selected{% endif %}>Халяль</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle"></i> 
                     <strong>Важно:</strong> Сумма процентов всех ингредиентов должна равняться 100%

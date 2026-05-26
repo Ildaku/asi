@@ -13,11 +13,40 @@
                 {% endif %}
             </h2>
             <p class="text-muted">Продукт: {{ recipe.product.name }}</p>
+            <p class="mb-0">
+                Статус рецептуры:
+                {% if recipe.halal_status and recipe.halal_status.value == 'haram' %}
+                <span class="badge bg-danger">Харам</span>
+                {% elif recipe.halal_status and recipe.halal_status.value == 'halal' %}
+                <span class="badge bg-success">Халяль</span>
+                {% else %}
+                <span class="text-muted">Не указано</span>
+                {% endif %}
+            </p>
         </div>
         <div class="col-md-4 text-end">
             <a href="{{ url_for('recipes') }}" class="btn btn-outline-secondary">← К списку рецептур</a>
         </div>
     </div>
+
+    {% if current_user.is_admin() %}
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Халяль / Харам</h5>
+            <form method="POST" class="row g-3 align-items-end">
+                <input type="hidden" name="update_halal" value="1">
+                {{ halal_form.csrf_token }}
+                <div class="col-md-6 col-lg-4">
+                    {{ halal_form.halal_status.label(class="form-label") }}
+                    {{ halal_form.halal_status(class="form-select") }}
+                </div>
+                <div class="col-md-auto">
+                    {{ halal_form.submit(class="btn btn-outline-primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
 
     {% if recipe.status == 'draft' and current_user.is_admin() %}
     <!-- Форма добавления ингредиента -->
