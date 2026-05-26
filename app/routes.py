@@ -2974,121 +2974,140 @@ def undo_plan_completion(plan_id):
     
     return redirect(url_for('production_plan_detail', plan_id=plan_id))
 
-@app.route('/products/<int:product_id>/edit_recipe', methods=['GET', 'POST'])
+@app.route('/products/<int:product_id>/edit_recipe', methods=['GET'])
 @admin_required
-def edit_product_recipe(product_id):
+def choose_product_recipe(product_id):
+    """Выбор рецептуры продукта, если их несколько."""
     product = Product.query.get_or_404(product_id)
-    
+    recipe_templates = (
+        Recipe.query.filter_by(product_id=product_id)
+        .order_by(Recipe.status.desc(), Recipe.name.asc(), Recipe.id.asc())
+        .all()
+    )
+    if not recipe_templates:
+        flash('У продукта нет рецептуры для редактирования', 'error')
+        return redirect(url_for('products'))
+    if len(recipe_templates) == 1:
+        return redirect(
+            url_for(
+                'edit_product_recipe',
+                product_id=product_id,
+                recipe_id=recipe_templates[0].id,
+            )
+        )
+    return render_template(
+        'choose_product_recipe.html',
+        product=product,
+        recipe_templates=recipe_templates,
+    )
+
+
+@app.route('/products/<int:product_id>/edit_recipe/<int:recipe_id>', methods=['GET', 'POST'])
+@admin_required
+def edit_product_recipe(product_id, recipe_id):
+    product = Product.query.get_or_404(product_id)
+    recipe_template = Recipe.query.filter_by(
+        id=recipe_id, product_id=product_id
+    ).first_or_404()
+
+    def _edit_url():
+        return url_for(
+            'edit_product_recipe', product_id=product_id, recipe_id=recipe_id
+        )
+
     if request.method == 'GET':
-        # Получаем текущую рецептуру
-        if not product.recipe_templates:
-            flash('У продукта нет рецептуры для редактирования', 'error')
-            return redirect(url_for('products'))
-        
-        # Берём первую рецептуру (или можно добавить выбор конкретной)
-        recipe_template = product.recipe_templates[0]
-        recipe_items = RecipeItem.query.filter_by(template_id=recipe_template.id).order_by(RecipeItem.id).all()
+        recipe_items = RecipeItem.query.filter_by(
+            template_id=recipe_template.id
+        ).order_by(RecipeItem.id).all()
         raw_material_types = [
             {'id': t.id, 'name': t.name}
             for t in RawMaterialType.query.order_by(RawMaterialType.name).all()
         ]
+        all_recipes = Recipe.query.filter_by(product_id=product_id).order_by(
+            Recipe.name.asc()
+        ).all()
 
         return render_template(
             'edit_product_recipe.html',
             product=product,
             recipe_template=recipe_template,
             recipe_items=recipe_items,
-            raw_material_types=raw_material_types
+            raw_material_types=raw_material_types,
+            all_recipes=all_recipes,
         )
-    
-    elif request.method == 'POST':
-        try:
-            # Проверяем наличие рецептуры
-            if not product.recipe_templates:
-                flash('У продукта нет рецептуры для редактирования', 'error')
-                return redirect(url_for('products'))
-            
-            recipe_template = product.recipe_templates[0]
-            recipe_template.halal_status = _halal_status_from_form(
-                request.form.get('halal_status')
-            )
 
-            active_plans = ProductionPlan.query.filter(
-                ProductionPlan.product_id == product_id,
-                ProductionPlan.status.in_([PlanStatus.APPROVED, PlanStatus.IN_PROGRESS]),
-            ).first()
+    try:
+        recipe_template.halal_status = _halal_status_from_form(
+            request.form.get('halal_status')
+        )
 
-            if active_plans:
-                db.session.commit()
-                flash(
-                    'Статус Халяль/Харам сохранён. Состав рецептуры нельзя менять: '
-                    'продукт используется в активных планах производства.',
-                    'warning',
-                )
-                return redirect(url_for('edit_product_recipe', product_id=product_id))
+        active_plans = ProductionPlan.query.filter(
+            ProductionPlan.product_id == product_id,
+            ProductionPlan.status.in_([PlanStatus.APPROVED, PlanStatus.IN_PROGRESS]),
+        ).first()
 
-            # Получаем данные из формы
-            material_type_ids = request.form.getlist('material_type_id[]')
-            percentages = request.form.getlist('percentage[]')
-            
-            # Валидация данных
-            if not material_type_ids or not percentages:
-                flash('Необходимо указать хотя бы один ингредиент', 'error')
-                return redirect(url_for('edit_product_recipe', product_id=product_id))
-            
-            if len(material_type_ids) != len(percentages):
-                flash('Ошибка в данных формы', 'error')
-                return redirect(url_for('edit_product_recipe', product_id=product_id))
-            
-            # Проверяем, что все проценты положительные
-            total_percentage = 0
-            for percentage_str in percentages:
-                try:
-                    percentage = float(percentage_str)
-                    if percentage <= 0:
-                        flash('Процент каждого ингредиента должен быть больше 0', 'error')
-                        return redirect(url_for('edit_product_recipe', product_id=product_id))
-                    total_percentage += percentage
-                except ValueError:
-                    flash('Некорректное значение процента', 'error')
-                    return redirect(url_for('edit_product_recipe', product_id=product_id))
-            
-            # Проверяем, что сумма процентов = 100%
-            if abs(total_percentage - 100.0) > 0.001:
-                flash(f'Сумма процентов должна быть равна 100%. Текущая сумма: {total_percentage:.3f}%', 'error')
-                return redirect(url_for('edit_product_recipe', product_id=product_id))
-            
-            # Проверяем уникальность типов сырья
-            if len(set(material_type_ids)) != len(material_type_ids):
-                flash('Каждый тип сырья может быть указан только один раз', 'error')
-                return redirect(url_for('edit_product_recipe', product_id=product_id))
-
-            # Начинаем транзакцию
-            db.session.begin()
-            
-            # Удаляем старые записи рецептуры
-            RecipeItem.query.filter_by(template_id=recipe_template.id).delete()
-            
-            # Создаём новые записи рецептуры
-            for material_type_id, percentage_str in zip(material_type_ids, percentages):
-                percentage = float(percentage_str)
-                recipe_item = RecipeItem(
-                    template_id=recipe_template.id,
-                    material_type_id=int(material_type_id),
-                    percentage=percentage
-                )
-                db.session.add(recipe_item)
-            
-            # Сохраняем изменения
+        if active_plans:
             db.session.commit()
-            
-            flash('Рецептура продукта успешно обновлена', 'success')
-            return redirect(url_for('products'))
-            
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Ошибка при обновлении рецептуры: {str(e)}', 'error')
-            return redirect(url_for('edit_product_recipe', product_id=product_id))
+            flash(
+                'Статус Халяль/Харам сохранён. Состав рецептуры нельзя менять: '
+                'продукт используется в активных планах производства.',
+                'warning',
+            )
+            return redirect(_edit_url())
+
+        material_type_ids = request.form.getlist('material_type_id[]')
+        percentages = request.form.getlist('percentage[]')
+
+        if not material_type_ids or not percentages:
+            flash('Необходимо указать хотя бы один ингредиент', 'error')
+            return redirect(_edit_url())
+
+        if len(material_type_ids) != len(percentages):
+            flash('Ошибка в данных формы', 'error')
+            return redirect(_edit_url())
+
+        total_percentage = 0
+        for percentage_str in percentages:
+            try:
+                percentage = float(percentage_str)
+                if percentage <= 0:
+                    flash('Процент каждого ингредиента должен быть больше 0', 'error')
+                    return redirect(_edit_url())
+                total_percentage += percentage
+            except ValueError:
+                flash('Некорректное значение процента', 'error')
+                return redirect(_edit_url())
+
+        if abs(total_percentage - 100.0) > 0.001:
+            flash(
+                f'Сумма процентов должна быть равна 100%. '
+                f'Текущая сумма: {total_percentage:.3f}%',
+                'error',
+            )
+            return redirect(_edit_url())
+
+        if len(set(material_type_ids)) != len(material_type_ids):
+            flash('Каждый тип сырья может быть указан только один раз', 'error')
+            return redirect(_edit_url())
+
+        RecipeItem.query.filter_by(template_id=recipe_template.id).delete()
+
+        for material_type_id, percentage_str in zip(material_type_ids, percentages):
+            recipe_item = RecipeItem(
+                template_id=recipe_template.id,
+                material_type_id=int(material_type_id),
+                percentage=float(percentage_str),
+            )
+            db.session.add(recipe_item)
+
+        db.session.commit()
+        flash('Рецептура продукта успешно обновлена', 'success')
+        return redirect(url_for('products'))
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ошибка при обновлении рецептуры: {str(e)}', 'error')
+        return redirect(_edit_url())
 
 @app.route('/admin/cleanup_orphaned_data')
 @admin_required
