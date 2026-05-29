@@ -69,7 +69,7 @@
                 <tr>
                     <th>Дата</th>
                     <th>Аллергены</th>
-                    <th>Безаллергенность</th>
+                    <th>Безаллерг.</th>
                     <th>Харам/Халяль</th>
                     <th>Контроль массы</th>
                     <th>Продукт</th>
@@ -77,7 +77,6 @@
                     <th>Партия</th>
                     <th>Количество (кг)</th>
                     <th>Статус</th>
-                    <th>Прогресс</th>
                     <th>Действия</th>
                 </tr>
             </thead>
@@ -104,7 +103,7 @@
                                 <span class="badge bg-danger me-1">{{ allergen }}</span>
                             {% endfor %}
                         {% else %}
-                            <span class="text-muted">Не указано</span>
+                            <span class="text-muted">-</span>
                         {% endif %}
                     </td>
                     <td>
@@ -114,7 +113,7 @@
                         {% elif halal_status == 'Халяль' %}
                             <span class="badge bg-success">Халяль</span>
                         {% else %}
-                            <span class="text-muted">Не указано</span>
+                            <span class="text-muted">-</span>
                         {% endif %}
                     </td>
                     <td>
@@ -122,7 +121,7 @@
                         {% if mass_control_status == 'Контролируется' %}
                             <span class="badge bg-info">масса</span>
                         {% else %}
-                            <span class="text-muted">Не указано</span>
+                            <span class="text-muted">-</span>
                         {% endif %}
                     </td>
                     <td>{{ plan.product.name }}</td>
@@ -133,22 +132,6 @@
                         <span class="badge bg-{{ status_colors[plan.status] }}">
                             {{ plan.status.display if plan.status.display else plan.status }}
                         </span>
-                    </td>
-                    <td>
-                        {% set progress = plan.get_progress() %}
-                        <div class="progress" style="height: 20px;">
-                            <div class="progress-bar bg-{{ status_colors[plan.status] }}" 
-                                 role="progressbar"
-                                 data-progress="{{ progress }}"
-                                 style="width: 0%;"
-                                 aria-valuenow="{{ progress }}"
-                                 aria-valuemin="0"
-                                 aria-valuemax="100"
-                                 data-bs-toggle="tooltip"
-                                 title="Выполнено {{ "%.1f"|format(progress) }}%">
-                                {{ "%.1f"|format(progress) }}%
-                            </div>
-                        </div>
                     </td>
                     <td>
                         <div class="btn-group">
@@ -292,12 +275,6 @@ $(document).ready(function() {
 
     // Инициализация тултипов
     $('[data-bs-toggle="tooltip"]').tooltip();
-
-    // Устанавливаем ширину progress-bar после рендера (чтобы CSS-линтер не ругался на Jinja-интерполяцию).
-    $('.progress-bar[data-progress]').each(function() {
-        const p = $(this).data('progress');
-        $(this).css('width', `${p}%`);
-    });
 });
 </script>
 {% endblock %} 
