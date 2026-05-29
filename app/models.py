@@ -159,6 +159,13 @@ raw_material_type_allergens = Table(
     Column('allergen_type_id', Integer, ForeignKey('allergen_types.id'), primary_key=True)
 )
 
+recipe_template_allergens = Table(
+    'recipe_template_allergens',
+    db.Model.metadata,
+    Column('recipe_template_id', Integer, ForeignKey('recipe_templates.id'), primary_key=True),
+    Column('allergen_type_id', Integer, ForeignKey('allergen_types.id'), primary_key=True),
+)
+
 class AllergenType(db.Model):
     __tablename__ = "allergen_types"
     
@@ -168,6 +175,7 @@ class AllergenType(db.Model):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     raw_material_types = relationship("RawMaterialType", secondary=raw_material_type_allergens, back_populates="allergens")
+    recipe_templates = relationship("RecipeTemplate", secondary=recipe_template_allergens, back_populates="allergens")
 
 class RawMaterialType(db.Model):
     __tablename__ = "raw_material_types"
@@ -259,6 +267,7 @@ class RecipeTemplate(db.Model):
     product = relationship("Product", back_populates="recipe_templates")
     recipe_items = relationship("RecipeItem", back_populates="template")
     production_plans = relationship("ProductionPlan", back_populates="template")
+    allergens = relationship("AllergenType", secondary=recipe_template_allergens, back_populates="recipe_templates")
 
     @property
     def halal_status_display(self):
@@ -403,6 +412,16 @@ class ProductionPlan(db.Model):
                 allergens.add(allergen.name)
         
         return sorted(list(allergens))
+
+    def get_bezallergennost_allergens(self):
+        """Аллергены, заданные вручную на рецептуре (колонка «Безаллергенность»)."""
+        if not self.template:
+            return []
+        return sorted((a.name for a in self.template.allergens), key=str)
+
+    def get_bezallergennost_display(self):
+        names = self.get_bezallergennost_allergens()
+        return ', '.join(names) if names else 'Не указано'
     
     def get_halal_status(self):
         """Статус Халяль/Харам плана — только из рецептуры (шаблона), не из сырья."""

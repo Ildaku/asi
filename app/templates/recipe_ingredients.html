@@ -29,6 +29,17 @@
         </div>
     </div>
 
+    <p class="mb-3">
+        Безаллергенность:
+        {% if recipe.allergens %}
+            {% for allergen in recipe.allergens|sort(attribute='name') %}
+            <span class="badge bg-danger me-1">{{ allergen.name }}</span>
+            {% endfor %}
+        {% else %}
+        <span class="text-muted">Не указано</span>
+        {% endif %}
+    </p>
+
     {% if current_user.is_admin() %}
     <div class="card mb-4">
         <div class="card-body">
@@ -42,6 +53,24 @@
                 </div>
                 <div class="col-md-auto">
                     {{ halal_form.submit(class="btn btn-outline-primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Безаллергенность</h5>
+            <form method="POST" class="row g-3 align-items-end">
+                <input type="hidden" name="update_allergens" value="1">
+                {{ allergen_form.csrf_token }}
+                <div class="col-md-8 col-lg-6">
+                    {{ allergen_form.allergen_type_ids.label(class="form-label") }}
+                    {{ allergen_form.allergen_type_ids(class="form-select", multiple=True, size="5") }}
+                    <div class="form-text">Удерживайте Ctrl (Cmd на Mac) для выбора нескольких.</div>
+                </div>
+                <div class="col-md-auto">
+                    {{ allergen_form.submit(class="btn btn-outline-primary") }}
                 </div>
             </form>
         </div>

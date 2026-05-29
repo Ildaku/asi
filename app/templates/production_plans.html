@@ -69,6 +69,7 @@
                 <tr>
                     <th>Дата</th>
                     <th>Аллергены</th>
+                    <th>Безаллергенность</th>
                     <th>Харам/Халяль</th>
                     <th>Контроль массы</th>
                     <th>Продукт</th>
@@ -94,6 +95,16 @@
                             {% endfor %}
                         {% else %}
                             <span class="text-muted">Нет</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% set bez_allergens = plan.get_bezallergennost_allergens() %}
+                        {% if bez_allergens %}
+                            {% for allergen in bez_allergens %}
+                                <span class="badge bg-danger me-1">{{ allergen }}</span>
+                            {% endfor %}
+                        {% else %}
+                            <span class="text-muted">Не указано</span>
                         {% endif %}
                     </td>
                     <td>

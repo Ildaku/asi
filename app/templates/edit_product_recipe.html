@@ -60,6 +60,18 @@
                             <option value="halal" {% if recipe_template.halal_status and recipe_template.halal_status.value == 'halal' %}selected{% endif %}>Халяль</option>
                         </select>
                     </div>
+                    <div class="col-md-6 col-lg-4">
+                        <label for="allergen_type_ids" class="form-label">Безаллергенность (аллергены)</label>
+                        <select name="allergen_type_ids" id="allergen_type_ids" class="form-select" multiple size="5">
+                            {% for allergen in allergen_types %}
+                            <option value="{{ allergen.id }}"
+                                    {% if allergen.id in selected_allergen_ids %}selected{% endif %}>
+                                {{ allergen.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Удерживайте Ctrl (Cmd на Mac) для выбора нескольких.</div>
+                    </div>
                 </div>
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle"></i> 

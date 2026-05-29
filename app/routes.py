@@ -13,6 +13,7 @@ from app.forms import (
     ProductionStatisticsForm, LoginForm, AllergenTypeForm, EditRawMaterialTypeForm, MonthlyPlanForm, EditBatchProductionDateForm, EditBatchEmployeeForm, EmployeeForm,
     ManagersDashboardForm,
     RecipeHalalForm,
+    RecipeAllergenForm,
 )
 from app.utils import (
     create_excel_report, style_header_row, adjust_column_width,
@@ -38,6 +39,17 @@ def _halal_status_from_form(raw):
         return HalalStatus(str(raw).strip())
     except ValueError:
         return None
+
+
+def _apply_recipe_allergens(recipe, allergen_ids):
+    """Сохраняет выбранные аллергены на рецептуре (безаллергенность)."""
+    recipe.allergens.clear()
+    if not allergen_ids:
+        return
+    for allergen_id in allergen_ids:
+        allergen = AllergenType.query.get(int(allergen_id))
+        if allergen:
+            recipe.allergens.append(allergen)
 
 
 @app.route('/')
@@ -107,9 +119,8 @@ def allergen_types():
 @admin_required
 def delete_allergen_type(id):
     a = AllergenType.query.get_or_404(id)
-    # Проверяем, не используется ли аллерген в видах сырья
-    if RawMaterialType.query.filter_by(allergen_type_id=id).first():
-        flash('Нельзя удалить аллерген, который используется в видах сырья!', 'error')
+    if a.raw_material_types or a.recipe_templates:
+        flash('Нельзя удалить аллерген, который используется в видах сырья или рецептурах!', 'error')
         return redirect(url_for('allergen_types'))
     db.session.delete(a)
     db.session.commit()
@@ -440,6 +451,8 @@ def recipes():
             halal_status=_halal_status_from_form(form.halal_status.data),
         )
         db.session.add(recipe)
+        db.session.flush()
+        _apply_recipe_allergens(recipe, form.allergen_type_ids.data)
         db.session.commit()
         flash('Рецептура создана! Теперь добавьте ингредиенты.', 'success')
         return redirect(url_for('recipe_ingredients', recipe_id=recipe.id))
@@ -474,6 +487,9 @@ def recipe_ingredients(recipe_id):
     if recipe.halal_status:
         halal_form.halal_status.data = recipe.halal_status.value
 
+    allergen_form = RecipeAllergenForm()
+    allergen_form.allergen_type_ids.data = [a.id for a in recipe.allergens]
+
     form = RecipeIngredientForm()
     form.recipe = recipe  # для валидации
 
@@ -489,6 +505,12 @@ def recipe_ingredients(recipe_id):
             recipe.halal_status = _halal_status_from_form(request.form.get('halal_status'))
             db.session.commit()
             flash('Статус Халяль/Харам рецептуры сохранён.', 'success')
+            return redirect(url_for('recipe_ingredients', recipe_id=recipe_id))
+
+        if request.form.get('update_allergens') == '1':
+            _apply_recipe_allergens(recipe, request.form.getlist('allergen_type_ids'))
+            db.session.commit()
+            flash('Безаллергенность рецептуры сохранена.', 'success')
             return redirect(url_for('recipe_ingredients', recipe_id=recipe_id))
 
         if recipe.status == 'saved':
@@ -540,6 +562,7 @@ def recipe_ingredients(recipe_id):
         'recipe_ingredients.html',
         form=form if recipe.status != 'saved' else None,
         halal_form=halal_form,
+        allergen_form=allergen_form,
         recipe=recipe,
         ingredients=ingredients,
         total_percent=total_percent,
@@ -2231,6 +2254,7 @@ def export_plan_to_word(plan_id):
     doc.add_paragraph('Количество: ' + f"{plan.quantity:.2f} кг")
     doc.add_paragraph('Статус: ' + plan.status.display)
     doc.add_paragraph('Халяль/харам: ' + plan.get_halal_status())
+    doc.add_paragraph('Безаллергенность: ' + plan.get_bezallergennost_display())
     doc.add_paragraph('')  # Пустая строка
     
     # Замесы
@@ -3026,6 +3050,8 @@ def edit_product_recipe(product_id, recipe_id):
         all_recipes = Recipe.query.filter_by(product_id=product_id).order_by(
             Recipe.name.asc()
         ).all()
+        allergen_types = AllergenType.query.order_by(AllergenType.name).all()
+        selected_allergen_ids = {a.id for a in recipe_template.allergens}
 
         return render_template(
             'edit_product_recipe.html',
@@ -3034,11 +3060,16 @@ def edit_product_recipe(product_id, recipe_id):
             recipe_items=recipe_items,
             raw_material_types=raw_material_types,
             all_recipes=all_recipes,
+            allergen_types=allergen_types,
+            selected_allergen_ids=selected_allergen_ids,
         )
 
     try:
         recipe_template.halal_status = _halal_status_from_form(
             request.form.get('halal_status')
+        )
+        _apply_recipe_allergens(
+            recipe_template, request.form.getlist('allergen_type_ids')
         )
 
         active_plans = ProductionPlan.query.filter(
@@ -3049,7 +3080,7 @@ def edit_product_recipe(product_id, recipe_id):
         if active_plans:
             db.session.commit()
             flash(
-                'Статус Халяль/Харам сохранён. Состав рецептуры нельзя менять: '
+                'Статус Халяль/Харам и безаллергенность сохранены. Состав рецептуры нельзя менять: '
                 'продукт используется в активных планах производства.',
                 'warning',
             )

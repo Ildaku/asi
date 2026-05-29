@@ -108,7 +108,16 @@ class RecipeForm(FlaskForm):
         validators=[Optional()],
         choices=HALAL_STATUS_FORM_CHOICES,
     )
+    allergen_type_ids = SelectMultipleField(
+        'Безаллергенность (аллергены)',
+        coerce=int,
+        validators=[Optional()],
+    )
     submit = SubmitField('Добавить рецептуру')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.allergen_type_ids.choices = [(a.id, a.name) for a in AllergenType.query.order_by(AllergenType.name).all()]
 
     def validate_name(self, field):
         if self.product_id.data:
@@ -129,6 +138,20 @@ class RecipeHalalForm(FlaskForm):
         choices=HALAL_STATUS_FORM_CHOICES,
     )
     submit = SubmitField('Сохранить статус')
+
+
+class RecipeAllergenForm(FlaskForm):
+    """Аллергены рецептуры для колонки «Безаллергенность» в планах производства."""
+    allergen_type_ids = SelectMultipleField(
+        'Безаллергенность (аллергены)',
+        coerce=int,
+        validators=[Optional()],
+    )
+    submit = SubmitField('Сохранить')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.allergen_type_ids.choices = [(a.id, a.name) for a in AllergenType.query.order_by(AllergenType.name).all()]
 
 
 class RecipeIngredientForm(FlaskForm):
