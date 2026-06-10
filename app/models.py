@@ -289,6 +289,9 @@ class RecipeItem(db.Model):
     template = relationship("RecipeTemplate", back_populates="recipe_items")
     material_type = relationship("RawMaterialType", back_populates="recipe_items")
 
+MANAGER_OKK_PLANNED_COMPLETION_DAYS = 10
+
+
 class ProductionPlan(db.Model):
     __tablename__ = "production_plans"
 
@@ -334,9 +337,9 @@ class ProductionPlan(db.Model):
 
     @property
     def manager_okk_planned_completion_date(self):
-        """План завершения проверки ОКК: +5 календарных дней от даты передачи в ОКК."""
+        """План завершения проверки ОКК: +N календарных дней от даты передачи в ОКК."""
         if self.handed_to_okk_date:
-            return self.handed_to_okk_date + timedelta(days=5)
+            return self.handed_to_okk_date + timedelta(days=MANAGER_OKK_PLANNED_COMPLETION_DAYS)
         return None
 
     def get_progress(self):
