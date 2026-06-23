@@ -7,13 +7,16 @@
             <h2>
                 План производства №{{ plan.batch_number }}
                 <span class="badge bg-{{ status_colors[plan.status] }}">
-                    {{ plan.status.display if plan.status.display else plan.status }}
+                    {{ plan.status_display_label }}
                 </span>
+                {% if plan.completed_with_shortfall %}
+                <span class="badge bg-warning text-dark">Недовыполнение</span>
+                {% endif %}
             </h2>
             <p class="text-muted">
                 Продукт: {{ plan.product.name }}<br>
                 Рецептура: {{ plan.template.name }}<br>
-                Количество: {{ "%.2f"|format(plan.quantity) }} кг
+                План: {{ "%.2f"|format(plan.quantity) }} кг
                 {% if plan.status == PlanStatus.DRAFT %}
                 <button class="btn btn-sm btn-outline-primary ms-2" data-bs-toggle="modal" data-bs-target="#editQuantityModal">
                     ✏️ Изменить количество
@@ -82,7 +85,9 @@
                 </div>
             </div>
             <p class="mb-0">
-                Произведено: {{ "%.2f"|format(total_produced) }} кг из {{ "%.2f"|format(plan.quantity) }} кг
+                План: {{ "%.2f"|format(plan.quantity) }} кг ·
+                Факт: {{ "%.2f"|format(total_produced) }} кг ·
+                {{ "%.1f"|format(progress_percent) }}%
             </p>
         </div>
     </div>
@@ -132,7 +137,21 @@
                         
                         <div class="mb-3">
                             {{ status_form.status.label }}
-                            {{ status_form.status(class="form-control") }}
+                            {{ status_form.status(class="form-control", id="plan_status_select") }}
+                        </div>
+                        <div class="mb-3 {% if not can_complete_with_shortfall %}d-none{% endif %}" id="shortfall_fields">
+                            <div class="alert alert-warning py-2 mb-2">
+                                Произведено меньше плана. Для завершения отметьте недовыполнение и укажите причину.
+                            </div>
+                            <div class="form-check mb-2">
+                                {{ status_form.complete_with_shortfall(class="form-check-input", id="complete_with_shortfall") }}
+                                {{ status_form.complete_with_shortfall.label(class="form-check-label") }}
+                            </div>
+                            <div id="shortfall_reason_block">
+                                {{ status_form.shortfall_reason.label(class="form-label") }}
+                                {{ status_form.shortfall_reason(class="form-control", rows="2", id="shortfall_reason") }}
+                                <div class="form-text">Не менее 3 символов. Плановое количество в системе не изменится.</div>
+                            </div>
                         </div>
                         <div class="mb-3">
                             {{ status_form.notes.label }}
@@ -600,6 +619,30 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    var statusSelect = document.getElementById('plan_status_select');
+    var shortfallFields = document.getElementById('shortfall_fields');
+    var shortfallCheckbox = document.getElementById('complete_with_shortfall');
+    var shortfallReasonBlock = document.getElementById('shortfall_reason_block');
+    var completedStatusValue = {{ PlanStatus.COMPLETED.value|tojson }};
+    var canShortfall = {{ can_complete_with_shortfall|tojson }};
+
+    function updateShortfallVisibility() {
+        if (!statusSelect || !shortfallFields) return;
+        var show = canShortfall && statusSelect.value === completedStatusValue;
+        shortfallFields.classList.toggle('d-none', !show);
+        if (shortfallReasonBlock && shortfallCheckbox) {
+            shortfallReasonBlock.classList.toggle('d-none', !shortfallCheckbox.checked);
+        }
+    }
+
+    if (statusSelect) {
+        statusSelect.addEventListener('change', updateShortfallVisibility);
+    }
+    if (shortfallCheckbox) {
+        shortfallCheckbox.addEventListener('change', updateShortfallVisibility);
+    }
+    updateShortfallVisibility();
+
     var addIngredientModal = document.getElementById('addIngredientModal');
     if (addIngredientModal) {
         addIngredientModal.addEventListener('show.bs.modal', function(event) {

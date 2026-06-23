@@ -309,6 +309,7 @@ class ProductionPlan(db.Model):
     handed_to_okk_date = Column(Date, nullable=True)
     actual_okk_check_date = Column(Date, nullable=True)
     okk_approved_on = Column(Date, nullable=True)
+    completed_with_shortfall = Column(Boolean, default=False, nullable=False, server_default='false')
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     created_by = Column(Integer, ForeignKey("users.id"))
@@ -342,12 +343,27 @@ class ProductionPlan(db.Model):
             return self.handed_to_okk_date + timedelta(days=MANAGER_OKK_PLANNED_COMPLETION_DAYS)
         return None
 
+    def get_produced_kg(self) -> float:
+        return sum(batch.weight for batch in self.batches) if self.batches else 0.0
+
+    def get_report_quantity_kg(self) -> float:
+        """Для отчётов: завершённый план — факт (сумма замесов), иначе — плановое количество."""
+        if self.status == PlanStatus.COMPLETED:
+            return self.get_produced_kg()
+        return self.quantity or 0.0
+
+    @property
+    def status_display_label(self) -> str:
+        label = self.status.display
+        if self.status == PlanStatus.COMPLETED and self.completed_with_shortfall:
+            return f"{label} (недовыполнение)"
+        return label
+
     def get_progress(self):
         """Возвращает процент выполнения плана"""
         if not self.quantity or self.quantity <= 0:
             return 0
-        total_produced = sum([batch.weight for batch in self.batches])
-        return (total_produced / self.quantity * 100)
+        return (self.get_produced_kg() / self.quantity * 100)
         
     def check_raw_materials_availability(self):
         """Проверяет наличие необходимого количества сырья для выполнения плана

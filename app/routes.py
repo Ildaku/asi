@@ -52,6 +52,28 @@ def _apply_recipe_allergens(recipe, allergen_ids):
             recipe.allergens.append(allergen)
 
 
+def _plan_batches_ingredients_complete(plan):
+    """Проверяет, что ингредиенты в каждом замесе соответствуют весу замеса."""
+    if not plan.template:
+        return True, None
+    for batch in plan.batches:
+        for recipe_item in plan.template.recipe_items:
+            need_qty = batch.weight * float(recipe_item.percentage) / 100
+            added_qty = sum(
+                bi.quantity for bi in batch.materials
+                if bi.material_batch
+                and bi.material_batch.material
+                and bi.material_batch.material.type_id == recipe_item.material_type_id
+            )
+            if abs(added_qty - need_qty) > 0.01:
+                return False, (
+                    f'В замесе №{batch.batch_number} для ингредиента '
+                    f'"{recipe_item.material_type.name}" внесено {added_qty:.2f} кг '
+                    f'из {need_qty:.2f} кг.'
+                )
+    return True, None
+
+
 @app.route('/')
 @login_required
 def index():
@@ -689,30 +711,46 @@ def update_plan_status(plan_id):
 
         # Проверка перед установкой статуса "завершен"
         if new_status == PlanStatus.COMPLETED:
-            # Проверяем, что указана дата производства
             if not form.production_date.data:
                 flash('Для завершения плана необходимо указать дату производства', 'error')
                 return redirect(url_for('production_plan_detail', plan_id=plan.id))
-            
-            total_produced = sum(batch.weight for batch in plan.batches)
-            # Сравниваем с небольшой погрешностью для чисел с плавающей точкой
-            if total_produced < plan.quantity * 0.999:
-                flash(f'Невозможно завершить план. Произведено {total_produced:.2f} кг из {plan.quantity:.2f} кг.', 'error')
+
+            total_produced = plan.get_produced_kg()
+            if total_produced <= 0:
+                flash('Невозможно завершить план без замесов (произведено 0 кг).', 'error')
                 return redirect(url_for('production_plan_detail', plan_id=plan.id))
-            # Строгая проверка внесения всех ингредиентов
-            for batch in plan.batches:
-                for recipe_item in plan.template.recipe_items:
-                    need_qty = batch.weight * float(recipe_item.percentage) / 100
-                    added_qty = sum(
-                        bi.quantity for bi in batch.materials
-                        if bi.material_batch and bi.material_batch.material and bi.material_batch.material.type_id == recipe_item.material_type_id
+
+            ingredients_ok, ingredients_error = _plan_batches_ingredients_complete(plan)
+            if not ingredients_ok:
+                flash(f'Невозможно завершить план. {ingredients_error}', 'error')
+                return redirect(url_for('production_plan_detail', plan_id=plan.id))
+
+            is_shortfall = total_produced < plan.quantity * 0.999
+            if is_shortfall:
+                if not form.complete_with_shortfall.data:
+                    flash(
+                        f'Произведено {total_produced:.2f} кг из {plan.quantity:.2f} кг. '
+                        f'Отметьте «Завершить с недовыполнением» и укажите причину.',
+                        'error',
                     )
-                    if abs(added_qty - need_qty) > 0.01:  # допускаем небольшую погрешность
-                        flash(
-                            f'Невозможно завершить план. В замесе №{batch.batch_number} для ингредиента "{recipe_item.material_type.name}" внесено {added_qty:.2f} кг из {need_qty:.2f} кг.',
-                            'error'
-                        )
-                        return redirect(url_for('production_plan_detail', plan_id=plan.id))
+                    return redirect(url_for('production_plan_detail', plan_id=plan.id))
+                shortfall_reason = (form.shortfall_reason.data or '').strip()
+                if len(shortfall_reason) < 3:
+                    flash('Укажите причину недовыполнения (не менее 3 символов).', 'error')
+                    return redirect(url_for('production_plan_detail', plan_id=plan.id))
+                plan.completed_with_shortfall = True
+                timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
+                shortfall_note = (
+                    f"[{timestamp}] Завершён с недовыполнением: "
+                    f"план {plan.quantity:.2f} кг, факт {total_produced:.2f} кг. "
+                    f"Причина: {shortfall_reason}"
+                )
+                if plan.notes:
+                    plan.notes = shortfall_note + "\n\n" + plan.notes
+                else:
+                    plan.notes = shortfall_note
+            else:
+                plan.completed_with_shortfall = False
         
         # Списание сырья при завершении плана
         if old_status != PlanStatus.COMPLETED and new_status == PlanStatus.COMPLETED:
@@ -789,6 +827,11 @@ def update_plan_status(plan_id):
         
         flash('Статус успешно обновлен!', 'success')
         return redirect(url_for('production_plan_detail', plan_id=plan.id))
+    
+    if request.method == 'POST':
+        for field_errors in form.errors.values():
+            for err in field_errors:
+                flash(err, 'error')
     
     return redirect(url_for('production_plan_detail', plan_id=plan.id))
 
@@ -1033,8 +1076,13 @@ def production_plan_detail(plan_id):
         flash('Рецептура для данного плана была удалена. Измените статус плана на "черновик" или "отменён", чтобы удалить его.', 'warning')
     
     # Вычисляем прогресс производства
-    total_produced = sum([batch.weight for batch in plan.batches])
+    total_produced = plan.get_produced_kg()
     progress_percent = (total_produced / plan.quantity * 100) if plan.quantity > 0 else 0
+    can_complete_with_shortfall = (
+        total_produced > 0
+        and plan.quantity
+        and total_produced < plan.quantity * 0.999
+    )
     
     # Проверяем наличие сырья только если есть рецептура
     raw_materials_availability = {}
@@ -1129,6 +1177,7 @@ def production_plan_detail(plan_id):
         start_message=start_message,
         progress_percent=progress_percent,
         total_produced=total_produced,
+        can_complete_with_shortfall=can_complete_with_shortfall,
         status_colors=status_colors,
         batches_info=batches_info,
         status_form=status_form,
@@ -1627,7 +1676,7 @@ def export_managers_dashboard():
 
         ws.cell(row=r, column=1, value=plan.product.name if plan.product else "—")
         ws.cell(row=r, column=2, value=plan.batch_number or "—")
-        ws.cell(row=r, column=3, value=plan.quantity if plan.quantity is not None else "")
+        ws.cell(row=r, column=3, value=plan.get_report_quantity_kg() if plan.quantity is not None else "")
         ws.cell(row=r, column=4, value=_format_date_dmy(plan.manager_planned_production_date))
         ws.cell(row=r, column=5, value=_format_date_dmy(plan.production_date))
         ws.cell(row=r, column=6, value=plan.manager_production_status_label)
@@ -1737,7 +1786,7 @@ def production_statistics():
                         'total_quantity': 0,
                         'plans_count': 0
                     }
-                totals[key]['total_quantity'] += plan.quantity
+                totals[key]['total_quantity'] += plan.get_report_quantity_kg()
                 totals[key]['plans_count'] += 1
 
     return render_template(
@@ -1934,7 +1983,7 @@ def export_production_statistics():
     
     # Заголовки
     headers = [
-        "Дата плана", "Продукт", "Рецептура", "План №", "Статус плана", "Плановое кол-во (кг)",
+        "Дата плана", "Продукт", "Рецептура", "План №", "Статус плана", "Кол-во (кг)",
         "Замес №", "Вес замеса (кг)", "Дата производства замеса",
         "Сырье", "Партия сырья", "Кол-во сырья (кг)"
     ]
@@ -1964,7 +2013,7 @@ def export_production_statistics():
             plan.template.name,
             plan.batch_number,
             plan.status,
-            plan.quantity
+            plan.get_report_quantity_kg()
         ]
         
         if not plan.batches:
@@ -2148,7 +2197,7 @@ def export_production_plans():
         
         # Получаем человекочитаемый статус
         if hasattr(plan.status, "display"):
-            status_display = plan.status.display
+            status_display = plan.status_display_label
         elif hasattr(plan.status, "value"):
             status_display = status_map.get(plan.status.value, plan.status.value)
         else:
@@ -2161,7 +2210,7 @@ def export_production_plans():
             plan.created_at.strftime("%Y-%m-%d"),
             plan.product.name,
             plan.batch_number,
-            plan.quantity,
+            plan.get_report_quantity_kg(),
             status_display,
             week_number,
             "",  # Пустая ячейка для "Отслеживание"
@@ -2251,8 +2300,8 @@ def export_plan_to_word(plan_id):
     # Информация о плане
     doc.add_paragraph('Продукт: ' + plan.product.name)
     doc.add_paragraph('Номер партии: ' + (plan.batch_number or 'Не указан'))
-    doc.add_paragraph('Количество: ' + f"{plan.quantity:.2f} кг")
-    doc.add_paragraph('Статус: ' + plan.status.display)
+    doc.add_paragraph('Количество: ' + f"{plan.get_report_quantity_kg():.2f} кг")
+    doc.add_paragraph('Статус: ' + plan.status_display_label)
     doc.add_paragraph('Халяль/харам: ' + plan.get_halal_status())
     doc.add_paragraph('Безаллергенность: ' + plan.get_bezallergennost_display())
     doc.add_paragraph('')  # Пустая строка
@@ -2978,6 +3027,7 @@ def undo_plan_completion(plan_id):
         
         # 2. Меняем статус на "Черновик"
         plan.status = PlanStatus.DRAFT
+        plan.completed_with_shortfall = False
         
         # 3. Добавляем запись в notes
         timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')

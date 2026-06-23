@@ -44,7 +44,7 @@
                             <th>Продукт</th>
                             <th>Рецептура</th>
                             <th>Номер партии</th>
-                            <th>Плановое кол-во</th>
+                            <th>Кол-во (кг)</th>
                             <th>Замесы</th>
                         </tr>
                     </thead>
@@ -55,7 +55,7 @@
                             <td>{{ plan.product.name }}</td>
                             <td>{{ plan.template.name }}</td>
                             <td>{{ plan.batch_number }}</td>
-                            <td>{{ "%.2f"|format(plan.quantity) }} кг</td>
+                            <td>{{ "%.2f"|format(plan.get_report_quantity_kg()) }} кг</td>
                             <td>
                                 {% if plan.batches %}
                                 <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#batches-{{ plan.id }}" aria-expanded="false" aria-controls="batches-{{ plan.id }}">

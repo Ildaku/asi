@@ -104,7 +104,7 @@
                     </td>
                     <td>{{ plan.product.name }}</td>
                     <td>{{ plan.batch_number }}</td>
-                    <td>{{ "%.2f"|format(plan.quantity) }}</td>
+                    <td>{{ "%.2f"|format(plan.get_report_quantity_kg()) }}</td>
                     <td>
                         {% if plan.picked_up_at %}
                             <span class="badge bg-success">Забран</span>

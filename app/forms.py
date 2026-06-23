@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, FloatField, DateField, SubmitField, SelectField, SelectMultipleField, TextAreaField, DecimalField, PasswordField
+from wtforms import StringField, FloatField, DateField, SubmitField, SelectField, SelectMultipleField, TextAreaField, DecimalField, PasswordField, BooleanField
 from wtforms.validators import DataRequired, NumberRange, ValidationError, Length, Optional, Email
 
 def coerce_optional_int(value):
@@ -215,8 +215,21 @@ class ProductionPlanForm(FlaskForm):
 class ProductionStatusForm(FlaskForm):
     status = SelectField('Статус', validators=[DataRequired()])
     production_date = DateField('Дата производства', format='%Y-%m-%d', validators=[Optional()])
+    complete_with_shortfall = BooleanField('Завершить с недовыполнением')
+    shortfall_reason = TextAreaField(
+        'Причина недовыполнения',
+        validators=[Optional(), Length(max=500)],
+    )
     notes = TextAreaField('Примечание', validators=[Optional(), Length(max=1000)])
     submit = SubmitField('Обновить статус')
+
+    def validate_shortfall_reason(self, field):
+        if (
+            self.complete_with_shortfall.data
+            and self.status.data == PlanStatus.COMPLETED.value
+        ):
+            if len((field.data or '').strip()) < 3:
+                raise ValidationError('Укажите причину недовыполнения (не менее 3 символов).')
 
     def __init__(self, plan=None, *args, **kwargs):
         super(ProductionStatusForm, self).__init__(*args, **kwargs)

@@ -79,10 +79,10 @@
                     <td>{{ plan.created_at.strftime('%d.%m.%Y') }}</td>
                     <td>{{ plan.product.name }}</td>
                     <td>{{ plan.batch_number }}</td>
-                    <td>{{ "%.2f"|format(plan.quantity) }}</td>
+                    <td>{{ "%.2f"|format(plan.get_report_quantity_kg()) }}</td>
                     <td>
                         <span class="badge bg-{{ status_colors[plan.status] }}">
-                            {{ plan.status.display if plan.status.display else plan.status }}
+                            {{ plan.status_display_label }}
                         </span>
                     </td>
                     <td>
@@ -141,7 +141,13 @@
         <div class="col-md-3">
             <div class="card text-center">
                 <div class="card-body">
-                    <h5 class="card-title">{{ "%.2f"|format(plans|sum(attribute='quantity')) }}</h5>
+                    <h5 class="card-title">
+                        {% set report_volume = namespace(total=0) %}
+                        {% for p in plans %}
+                        {% set report_volume.total = report_volume.total + p.get_report_quantity_kg() %}
+                        {% endfor %}
+                        {{ "%.2f"|format(report_volume.total) }}
+                    </h5>
                     <p class="card-text">Общий объём (кг)</p>
                 </div>
             </div>

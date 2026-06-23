@@ -82,7 +82,7 @@
             <td>{{ plan.date }}</td>
             <td>{{ plan.product.name }}</td>
             <td>{{ plan.batch_number }}</td>
-            <td>{{ plan.quantity }}</td>
+            <td>{{ plan.get_report_quantity_kg() }}</td>
             <td>{{ plan.status }}</td>
             <td><a href="{{ url_for('production_plan_detail', plan_id=plan.id) }}" class="btn btn-sm btn-outline-primary">Подробнее</a></td>
         </tr>
