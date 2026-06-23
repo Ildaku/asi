@@ -7,10 +7,10 @@
             <h2>
                 План производства №{{ plan.batch_number }}
                 <span class="badge bg-{{ status_colors[plan.status] }}">
-                    {{ plan.status_display_label }}
+                    {{ plan.status.display if plan.status.display else plan.status }}
                 </span>
                 {% if plan.completed_with_shortfall %}
-                <span class="badge bg-warning text-dark">Недовыполнение</span>
+                <span class="badge bg-warning text-dark">н/в</span>
                 {% endif %}
             </h2>
             <p class="text-muted">
@@ -91,6 +91,26 @@
             </p>
         </div>
     </div>
+
+    {% if plan.completed_with_shortfall %}
+    <div class="card mb-4 border-warning">
+        <div class="card-body py-3">
+            <h6 class="card-title mb-2">Завершён с недовыполнением</h6>
+            <p class="mb-1">
+                <strong>План:</strong> {{ "%.2f"|format(plan.quantity) }} кг ·
+                <strong>Факт:</strong> {{ "%.2f"|format(total_produced) }} кг
+            </p>
+            <p class="mb-0">
+                <strong>Причина:</strong>
+                {% if plan.shortfall_reason %}
+                {{ plan.shortfall_reason }}
+                {% else %}
+                <span class="text-muted">см. историю примечаний</span>
+                {% endif %}
+            </p>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Статус и примечания -->
     <div class="row mb-4">

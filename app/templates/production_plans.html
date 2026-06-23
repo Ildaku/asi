@@ -68,11 +68,11 @@
             <thead>
                 <tr>
                     <th>Дата</th>
+                    <th>Продукт</th>
                     <th>Аллергены</th>
                     <th>Безаллерг.</th>
                     <th>Харам/Халяль</th>
                     <th>Контроль массы</th>
-                    <th>Продукт</th>
                     <th>Рецептура</th>
                     <th>Партия</th>
                     <th>Количество (кг)</th>
@@ -86,6 +86,7 @@
                     <td data-order="{{ plan.created_at.strftime('%Y-%m-%d') }}">
                         <span style="display:none;">{{ plan.created_at.strftime('%Y-%m-%d') }}</span>{{ plan.created_at.strftime('%d.%m.%Y') }}
                     </td>
+                    <td>{{ plan.product.name }}</td>
                     <td>
                         {% set allergens = plan.get_allergens() %}
                         {% if allergens %}
@@ -124,14 +125,18 @@
                             <span class="text-muted">-</span>
                         {% endif %}
                     </td>
-                    <td>{{ plan.product.name }}</td>
                     <td>{{ plan.template.name if plan.template else 'Рецептура удалена' }}</td>
                     <td>{{ plan.batch_number }}</td>
                     <td>{{ "%.2f"|format(plan.quantity) }}</td>
                     <td>
                         <span class="badge bg-{{ status_colors[plan.status] }}">
-                            {{ plan.status_display_label }}
+                            {{ plan.status.display if plan.status.display else plan.status }}
                         </span>
+                        {% if plan.completed_with_shortfall %}
+                        <span class="badge bg-warning text-dark"
+                              data-bs-toggle="tooltip"
+                              title="Завершён с недовыполнением">н/в</span>
+                        {% endif %}
                     </td>
                     <td>
                         <div class="btn-group">

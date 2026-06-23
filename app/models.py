@@ -310,6 +310,7 @@ class ProductionPlan(db.Model):
     actual_okk_check_date = Column(Date, nullable=True)
     okk_approved_on = Column(Date, nullable=True)
     completed_with_shortfall = Column(Boolean, default=False, nullable=False, server_default='false')
+    shortfall_reason = Column(String(500), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     created_by = Column(Integer, ForeignKey("users.id"))

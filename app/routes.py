@@ -726,31 +726,34 @@ def update_plan_status(plan_id):
                 return redirect(url_for('production_plan_detail', plan_id=plan.id))
 
             is_shortfall = total_produced < plan.quantity * 0.999
-            if is_shortfall:
-                if not form.complete_with_shortfall.data:
-                    flash(
-                        f'Произведено {total_produced:.2f} кг из {plan.quantity:.2f} кг. '
-                        f'Отметьте «Завершить с недовыполнением» и укажите причину.',
-                        'error',
+            if old_status != PlanStatus.COMPLETED:
+                if is_shortfall:
+                    if not form.complete_with_shortfall.data:
+                        flash(
+                            f'Произведено {total_produced:.2f} кг из {plan.quantity:.2f} кг. '
+                            f'Отметьте «Завершить с недовыполнением» и укажите причину.',
+                            'error',
+                        )
+                        return redirect(url_for('production_plan_detail', plan_id=plan.id))
+                    shortfall_reason = (form.shortfall_reason.data or '').strip()
+                    if len(shortfall_reason) < 3:
+                        flash('Укажите причину недовыполнения (не менее 3 символов).', 'error')
+                        return redirect(url_for('production_plan_detail', plan_id=plan.id))
+                    plan.completed_with_shortfall = True
+                    plan.shortfall_reason = shortfall_reason
+                    timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
+                    shortfall_note = (
+                        f"[{timestamp}] Завершён с недовыполнением: "
+                        f"план {plan.quantity:.2f} кг, факт {total_produced:.2f} кг. "
+                        f"Причина: {shortfall_reason}"
                     )
-                    return redirect(url_for('production_plan_detail', plan_id=plan.id))
-                shortfall_reason = (form.shortfall_reason.data or '').strip()
-                if len(shortfall_reason) < 3:
-                    flash('Укажите причину недовыполнения (не менее 3 символов).', 'error')
-                    return redirect(url_for('production_plan_detail', plan_id=plan.id))
-                plan.completed_with_shortfall = True
-                timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
-                shortfall_note = (
-                    f"[{timestamp}] Завершён с недовыполнением: "
-                    f"план {plan.quantity:.2f} кг, факт {total_produced:.2f} кг. "
-                    f"Причина: {shortfall_reason}"
-                )
-                if plan.notes:
-                    plan.notes = shortfall_note + "\n\n" + plan.notes
+                    if plan.notes:
+                        plan.notes = shortfall_note + "\n\n" + plan.notes
+                    else:
+                        plan.notes = shortfall_note
                 else:
-                    plan.notes = shortfall_note
-            else:
-                plan.completed_with_shortfall = False
+                    plan.completed_with_shortfall = False
+                    plan.shortfall_reason = None
         
         # Списание сырья при завершении плана
         if old_status != PlanStatus.COMPLETED and new_status == PlanStatus.COMPLETED:
@@ -1079,7 +1082,8 @@ def production_plan_detail(plan_id):
     total_produced = plan.get_produced_kg()
     progress_percent = (total_produced / plan.quantity * 100) if plan.quantity > 0 else 0
     can_complete_with_shortfall = (
-        total_produced > 0
+        plan.status != PlanStatus.COMPLETED
+        and total_produced > 0
         and plan.quantity
         and total_produced < plan.quantity * 0.999
     )
@@ -3028,6 +3032,7 @@ def undo_plan_completion(plan_id):
         # 2. Меняем статус на "Черновик"
         plan.status = PlanStatus.DRAFT
         plan.completed_with_shortfall = False
+        plan.shortfall_reason = None
         
         # 3. Добавляем запись в notes
         timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
