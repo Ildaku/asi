@@ -1,8 +1,28 @@
 {% extends 'base.html' %}
 {% block title %}Главная | Planner2{% endblock %}
 {% block content %}
-    <div class="text-center mt-5">
-        <h1 class="mb-4">Система учёта производства</h1>
+    <div class="mt-5">
+        <h1 class="mb-4 {% if not current_user.is_admin() %}text-center{% endif %}">Система учёта производства</h1>
+
+        {% if current_user.is_admin() %}
+        <div class="d-flex flex-wrap justify-content-center align-items-start gap-4">
+            <div class="flex-shrink-0">
+                <img src="{{ url_for('static', filename='images/3121db87-cf9a-4d27-af03-e851e3943925.png') }}"
+                     alt=""
+                     class="img-fluid rounded shadow-sm home-admin-image">
+            </div>
+            <div class="list-group home-main-menu">
+                <a href="{{ url_for('raw_materials') }}" class="list-group-item list-group-item-action">Сырьё (партии)</a>
+                <a href="{{ url_for('products') }}" class="list-group-item list-group-item-action">Продукты</a>
+                <a href="{{ url_for('production_plans') }}" class="list-group-item list-group-item-action">План производства</a>
+                <a href="{{ url_for('managers_dashboard') }}" class="list-group-item list-group-item-action">Для менеджеров</a>
+                <a href="{{ url_for('yearly_planning') }}" class="list-group-item list-group-item-action">Годовое планирование</a>
+                <a href="{{ url_for('warehouse_production') }}" class="list-group-item list-group-item-action">Склад производства</a>
+                <a href="{{ url_for('reports') }}" class="list-group-item list-group-item-action">Отчёты</a>
+                <a href="{{ url_for('employees') }}" class="list-group-item list-group-item-action">Сотрудники</a>
+            </div>
+        </div>
+        {% else %}
         <div class="list-group w-50 mx-auto">
             {% if current_user.is_manager() %}
             <a href="{{ url_for('managers_dashboard') }}" class="list-group-item list-group-item-action">Для менеджеров</a>
@@ -22,5 +42,6 @@
             {% endif %}
             {% endif %}
         </div>
+        {% endif %}
     </div>
-{% endblock %} 
+{% endblock %}
