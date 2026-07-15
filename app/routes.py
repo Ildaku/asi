@@ -17,6 +17,7 @@ from app.forms import (
     CreateUserForm,
     ChangeUserPasswordForm,
 )
+from app.email_notifications import notify_planned_production_date_changed
 from app.utils import (
     create_excel_report, style_header_row, adjust_column_width,
     save_excel_report, format_datetime
@@ -1699,12 +1700,19 @@ def managers_dashboard():
             return render_template('managers.html', **ctx)
 
         plans = query.all()
+        planned_date_changes = []
         for plan in plans:
             pid = plan.id
             if current_user.is_admin():
-                plan.manager_planned_production_date = _parse_optional_date_form_field(
+                old_planned_date = plan.manager_planned_production_date
+                new_planned_date = _parse_optional_date_form_field(
                     f'manager_planned_{pid}'
                 )
+                plan.manager_planned_production_date = new_planned_date
+                if old_planned_date != new_planned_date:
+                    planned_date_changes.append(
+                        (plan, old_planned_date, new_planned_date)
+                    )
                 plan.handed_to_okk_date = _parse_optional_date_form_field(
                     f'handed_okk_{pid}'
                 )
@@ -1714,7 +1722,22 @@ def managers_dashboard():
                 )
 
         db.session.commit()
-        flash('Данные сохранены.', 'success')
+
+        email_failures = 0
+        for plan, old_date, new_date in planned_date_changes:
+            if not notify_planned_production_date_changed(
+                plan, old_date, new_date, current_user.username
+            ):
+                email_failures += 1
+
+        if email_failures:
+            flash(
+                'Данные сохранены, но не удалось отправить '
+                f'{email_failures} email-уведомлений. Проверьте настройки почты на Render.',
+                'warning',
+            )
+        else:
+            flash('Данные сохранены.', 'success')
         rd = {}
         if filter_product_id:
             rd['product_id'] = filter_product_id
