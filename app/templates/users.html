@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% block title %}Пользователи | Planner2{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Главная</a></li>
+        <li class="breadcrumb-item active">Пользователи</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Пользователи</h2>
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">← На главную</a>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Создать пользователя</h5>
+            <form method="POST" action="{{ url_for('users') }}" class="row g-3">
+                {{ form.csrf_token }}
+                <div class="col-md-3">
+                    {{ form.username.label(class="form-label") }}
+                    {{ form.username(class="form-control") }}
+                    {% for error in form.username.errors %}
+                    <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <div class="col-md-3">
+                    {{ form.email.label(class="form-label") }}
+                    {{ form.email(class="form-control") }}
+                    {% for error in form.email.errors %}
+                    <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <div class="col-md-2">
+                    {{ form.role.label(class="form-label") }}
+                    {{ form.role(class="form-select") }}
+                    {% for error in form.role.errors %}
+                    <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <div class="col-md-2">
+                    {{ form.password.label(class="form-label") }}
+                    {{ form.password(class="form-control") }}
+                    {% for error in form.password.errors %}
+                    <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <div class="col-md-2">
+                    {{ form.password_confirm.label(class="form-label") }}
+                    {{ form.password_confirm(class="form-control") }}
+                    {% for error in form.password_confirm.errors %}
+                    <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <div class="col-12">
+                    {{ form.submit(class="btn btn-primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Логин</th>
+                    <th>Email</th>
+                    <th>Роль</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>
+                        {{ user.username }}
+                        {% if user.id == current_user.id %}
+                        <span class="badge bg-secondary">вы</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ user.email }}</td>
+                    <td>
+                        {% if user.role == UserRole.ADMIN %}
+                        <span class="badge bg-danger">ADMIN</span>
+                        {% elif user.role == UserRole.OPERATOR %}
+                        <span class="badge bg-primary">OPERATOR</span>
+                        {% elif user.role == UserRole.MANAGER %}
+                        <span class="badge bg-info text-dark">MANAGER</span>
+                        {% else %}
+                        {{ user.role }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if user.is_active %}
+                        <span class="badge bg-success">Активен</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Деактивирован</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group">
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-primary"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#changePasswordModal{{ user.id }}">
+                                Сменить пароль
+                            </button>
+                            {% if user.is_active %}
+                            <form method="POST"
+                                  action="{{ url_for('deactivate_user', user_id=user.id) }}"
+                                  class="d-inline"
+                                  onsubmit="return confirm('Деактивировать пользователя «{{ user.username }}»?');">
+                                <button type="submit"
+                                        class="btn btn-sm btn-outline-warning"
+                                        {% if user.id == current_user.id %}disabled title="Нельзя деактивировать себя"{% endif %}>
+                                    Деактивировать
+                                </button>
+                            </form>
+                            {% else %}
+                            <form method="POST"
+                                  action="{{ url_for('activate_user', user_id=user.id) }}"
+                                  class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-success">
+                                    Активировать
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-muted">Пользователей пока нет.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% for user in users %}
+<div class="modal fade" id="changePasswordModal{{ user.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('change_user_password', user_id=user.id) }}">
+                {{ password_form.csrf_token }}
+                <div class="modal-header">
+                    <h5 class="modal-title">Сменить пароль: {{ user.username }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        {{ password_form.password.label(class="form-label") }}
+                        {{ password_form.password(class="form-control", id="password_" ~ user.id) }}
+                    </div>
+                    <div class="mb-3">
+                        {{ password_form.password_confirm.label(class="form-label") }}
+                        {{ password_form.password_confirm(class="form-control", id="password_confirm_" ~ user.id) }}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    {{ password_form.submit(class="btn btn-primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, FloatField, DateField, SubmitField, SelectField, SelectMultipleField, TextAreaField, DecimalField, PasswordField, BooleanField
-from wtforms.validators import DataRequired, NumberRange, ValidationError, Length, Optional, Email
+from wtforms.validators import DataRequired, NumberRange, ValidationError, Length, Optional, Email, EqualTo
 
 def coerce_optional_int(value):
     """Преобразует значение в int или возвращает None для пустых значений"""
@@ -311,12 +311,20 @@ class CreateUserForm(FlaskForm):
         DataRequired(),
         Length(min=6, message='Пароль должен содержать минимум 6 символов')
     ])
+    password_confirm = PasswordField('Подтверждение пароля', validators=[
+        DataRequired(),
+        EqualTo('password', message='Пароли не совпадают')
+    ])
     role = SelectField('Роль', coerce=str, validators=[DataRequired()])
     submit = SubmitField('Создать пользователя')
 
     def __init__(self, *args, **kwargs):
         super(CreateUserForm, self).__init__(*args, **kwargs)
-        self.role.choices = [(role.value, role.value.upper()) for role in UserRole]
+        self.role.choices = [
+            (UserRole.ADMIN.value, 'ADMIN — администратор'),
+            (UserRole.OPERATOR.value, 'OPERATOR — оператор'),
+            (UserRole.MANAGER.value, 'MANAGER — менеджер'),
+        ]
 
     def validate_username(self, field):
         if User.query.filter_by(username=field.data).first():
@@ -324,7 +332,20 @@ class CreateUserForm(FlaskForm):
 
     def validate_email(self, field):
         if User.query.filter_by(email=field.data).first():
-            raise ValidationError('Пользователь с таким email уже существует.') 
+            raise ValidationError('Пользователь с таким email уже существует.')
+
+
+class ChangeUserPasswordForm(FlaskForm):
+    password = PasswordField('Новый пароль', validators=[
+        DataRequired(),
+        Length(min=6, message='Пароль должен содержать минимум 6 символов')
+    ])
+    password_confirm = PasswordField('Подтверждение пароля', validators=[
+        DataRequired(),
+        EqualTo('password', message='Пароли не совпадают')
+    ])
+    submit = SubmitField('Сохранить пароль')
+
 
 class MonthlyPlanForm(FlaskForm):
     year = SelectField('Год', coerce=int, validators=[DataRequired()])

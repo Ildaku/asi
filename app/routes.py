@@ -14,6 +14,8 @@ from app.forms import (
     ManagersDashboardForm,
     RecipeHalalForm,
     RecipeAllergenForm,
+    CreateUserForm,
+    ChangeUserPasswordForm,
 )
 from app.utils import (
     create_excel_report, style_header_row, adjust_column_width,
@@ -177,6 +179,98 @@ def delete_employee(id):
     db.session.commit()
     flash('Сотрудник удален!', 'success')
     return redirect(url_for('employees'))
+
+
+def _active_admin_count():
+    return User.query.filter_by(role=UserRole.ADMIN, is_active=True).count()
+
+
+def _role_from_form(raw):
+    try:
+        return UserRole(str(raw).strip())
+    except ValueError:
+        return None
+
+
+@app.route('/users', methods=['GET', 'POST'])
+@admin_required
+def users():
+    """Управление учётными записями (создание / список)."""
+    form = CreateUserForm()
+    if form.validate_on_submit():
+        role = _role_from_form(form.role.data)
+        if role is None:
+            flash('Некорректная роль пользователя.', 'error')
+            return redirect(url_for('users'))
+        user = User(
+            username=form.username.data.strip(),
+            email=form.email.data.strip(),
+            role=role,
+            is_active=True,
+        )
+        user.set_password(form.password.data)
+        db.session.add(user)
+        db.session.commit()
+        flash(f'Пользователь «{user.username}» создан.', 'success')
+        return redirect(url_for('users'))
+    users_list = User.query.order_by(User.username.asc()).all()
+    password_form = ChangeUserPasswordForm()
+    return render_template(
+        'users.html',
+        form=form,
+        password_form=password_form,
+        users=users_list,
+        UserRole=UserRole,
+    )
+
+
+@app.route('/users/<int:user_id>/change_password', methods=['POST'])
+@admin_required
+def change_user_password(user_id):
+    user = User.query.get_or_404(user_id)
+    form = ChangeUserPasswordForm()
+    if form.validate_on_submit():
+        user.set_password(form.password.data)
+        db.session.commit()
+        flash(f'Пароль пользователя «{user.username}» изменён.', 'success')
+    else:
+        for field_errors in form.errors.values():
+            for err in field_errors:
+                flash(err, 'error')
+    return redirect(url_for('users'))
+
+
+@app.route('/users/<int:user_id>/deactivate', methods=['POST'])
+@admin_required
+def deactivate_user(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.id == current_user.id:
+        flash('Нельзя деактивировать свою учётную запись.', 'error')
+        return redirect(url_for('users'))
+    if not user.is_active:
+        flash('Пользователь уже деактивирован.', 'info')
+        return redirect(url_for('users'))
+    if user.role == UserRole.ADMIN and _active_admin_count() <= 1:
+        flash('Нельзя деактивировать последнего активного администратора.', 'error')
+        return redirect(url_for('users'))
+    user.is_active = False
+    db.session.commit()
+    flash(f'Пользователь «{user.username}» деактивирован.', 'success')
+    return redirect(url_for('users'))
+
+
+@app.route('/users/<int:user_id>/activate', methods=['POST'])
+@admin_required
+def activate_user(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.is_active:
+        flash('Пользователь уже активен.', 'info')
+        return redirect(url_for('users'))
+    user.is_active = True
+    db.session.commit()
+    flash(f'Пользователь «{user.username}» активирован.', 'success')
+    return redirect(url_for('users'))
+
 
 @app.route('/raw_material_types/edit/<int:id>', methods=['GET', 'POST'])
 @admin_required
@@ -2607,6 +2701,9 @@ def login():
         from app.models import User
         user = User.query.filter_by(username=form.username.data).first()
         if user and user.check_password(form.password.data):
+            if not user.is_active:
+                flash('Учётная запись деактивирована. Обратитесь к администратору.', 'error')
+                return render_template('login.html', form=form)
             login_user(user)
             flash('Вы успешно вошли в систему!', 'success')
             next_page = request.args.get('next')
