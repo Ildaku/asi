@@ -15,8 +15,14 @@ else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/planner2.db'
 
 app.config.from_mapping(
-    SECRET_KEY='your-secret-key-should-be-changed',
+    SECRET_KEY=os.environ.get('SECRET_KEY', 'your-secret-key-should-be-changed'),
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
+    # Managed PostgreSQL закрывает idle SSL-соединения; без этого после простоя
+    # первый запрос падает с Internal Server Error, а обновление страницы уже работает.
+    SQLALCHEMY_ENGINE_OPTIONS={
+        'pool_pre_ping': True,
+        'pool_recycle': 280,
+    },
 )
 
 # Создаем объект db и связываем его с приложением
