@@ -317,7 +317,7 @@
                             </a>
                             {% endif %}
                         {% if plan.status != PlanStatus.COMPLETED %}
-                        <form method="POST" action="{{ url_for('delete_batch', batch_id=batch_info.batch.id) }}" style="display:inline;" onsubmit="return confirm('Удалить этот замес?');">
+                        <form method="POST" action="{{ url_for('delete_batch', batch_id=batch_info.batch.id) }}" class="js-delete-batch" style="display:inline;">
                                 <button type="submit" class="btn btn-danger btn-sm">Удалить</button>
                         </form>
                         {% endif %}
@@ -639,6 +639,26 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    var scrollKey = 'productionPlanScroll:{{ plan.id }}';
+    var savedScroll = sessionStorage.getItem(scrollKey);
+    if (savedScroll !== null) {
+        sessionStorage.removeItem(scrollKey);
+        var y = parseInt(savedScroll, 10) || 0;
+        requestAnimationFrame(function() {
+            window.scrollTo(0, y);
+        });
+    }
+
+    document.querySelectorAll('form.js-delete-batch').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            if (!confirm('Удалить этот замес?')) {
+                e.preventDefault();
+                return;
+            }
+            sessionStorage.setItem(scrollKey, String(window.scrollY || window.pageYOffset || 0));
+        });
+    });
+
     var statusSelect = document.getElementById('plan_status_select');
     var shortfallFields = document.getElementById('shortfall_fields');
     var shortfallCheckbox = document.getElementById('complete_with_shortfall');

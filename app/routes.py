@@ -2434,8 +2434,8 @@ def export_plan_to_word(plan_id):
         # Информация о замесе
         doc.add_heading(f'Замес №{batch.batch_number}', level=2)
         
-        if batch.production_date:
-            doc.add_paragraph('Дата производства: ' + batch.production_date.strftime('%d.%m.%Y'))
+        if plan.production_date:
+            doc.add_paragraph('Дата производства: ' + plan.production_date.strftime('%d.%m.%Y'))
         else:
             doc.add_paragraph('Дата производства: не указана')
         
