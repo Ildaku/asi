@@ -4,7 +4,7 @@ from app import app, db
 from app.models import (
     RawMaterial, RecipeTemplate as Recipe, Product, RawMaterialType,
     RecipeItem as RecipeIngredient, RecipeItem, ProductionPlan, PlanStatus,
-    ProductionBatch, MaterialBatch, BatchMaterial, User, UserRole, AllergenType, MonthlyPlan, Employee, HalalStatus, MassControlStatus
+    ProductionBatch, MaterialBatch, BatchMaterial, User, UserRole, AllergenType, MonthlyPlan, Employee, HalalStatus, MassControlStatus, PalletType
 )
 from app.forms import (
     RawMaterialForm, ProductForm, RecipeForm, RecipeIngredientForm,
@@ -919,10 +919,14 @@ def update_plan_status(plan_id):
             
         if form.notes.data:
             plan.notes = form.notes.data + "\n" + plan.notes
-        
+
+        pallet = (form.pallet_type.data or '').strip()
+        plan.pallet_type = pallet if pallet in (PalletType.EURO.value, PalletType.FIN.value) else None
+        plan.kg_per_pallet = form.kg_per_pallet.data
+
         plan.status = new_status
         db.session.commit()
-        
+
         flash('Статус успешно обновлен!', 'success')
         return redirect(url_for('production_plan_detail', plan_id=plan.id))
     
@@ -1262,6 +1266,14 @@ def production_plan_detail(plan_id):
     # Создаем формы
     status_form = ProductionStatusForm(plan=plan)
     status_form.status.data = plan.status  # Устанавливаем текущий статус
+    if plan.production_date:
+        status_form.production_date.data = (
+            plan.production_date.date()
+            if hasattr(plan.production_date, 'date')
+            else plan.production_date
+        )
+    status_form.pallet_type.data = plan.pallet_type or ''
+    status_form.kg_per_pallet.data = plan.kg_per_pallet
     batch_form = ProductionBatchForm()  # Форма автоматически загрузит список сотрудников
     batch_ingredient_form = BatchIngredientForm()
 
@@ -2425,6 +2437,8 @@ def export_plan_to_word(plan_id):
     doc.add_paragraph('Статус: ' + plan.status_display_label)
     doc.add_paragraph('Халяль/харам: ' + plan.get_halal_status())
     doc.add_paragraph('Безаллергенность: ' + plan.get_bezallergennost_display())
+    doc.add_paragraph('Вид паллет: ' + plan.get_pallet_type_display())
+    doc.add_paragraph('Кг на одном паллете: ' + plan.get_kg_per_pallet_display())
     doc.add_paragraph('')  # Пустая строка
     
     # Замесы

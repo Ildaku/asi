@@ -12,7 +12,8 @@ def coerce_optional_int(value):
         return None
 from .models import (
     RawMaterial, RecipeTemplate as Recipe, Product, RawMaterialType, RecipeItem as RecipeIngredient,
-    ProductionPlan, PlanStatus, User, UserRole, AllergenType, MonthlyPlan, Employee, HalalStatus, MassControlStatus
+    ProductionPlan, PlanStatus, User, UserRole, AllergenType, MonthlyPlan, Employee, HalalStatus, MassControlStatus,
+    PalletType,
 )
 
 class AllergenTypeForm(FlaskForm):
@@ -215,6 +216,19 @@ class ProductionPlanForm(FlaskForm):
 class ProductionStatusForm(FlaskForm):
     status = SelectField('Статус', validators=[DataRequired()])
     production_date = DateField('Дата производства', format='%Y-%m-%d', validators=[Optional()])
+    pallet_type = SelectField(
+        'Вид паллет',
+        choices=[
+            ('', 'Не указан'),
+            (PalletType.EURO.value, PalletType.EURO.display),
+            (PalletType.FIN.value, PalletType.FIN.display),
+        ],
+        validators=[Optional()],
+    )
+    kg_per_pallet = FloatField(
+        'Кг на одном паллете',
+        validators=[Optional(), NumberRange(min=0.01, message='Количество должно быть больше 0')],
+    )
     complete_with_shortfall = BooleanField('Завершить с недовыполнением')
     shortfall_reason = TextAreaField(
         'Причина недовыполнения',

@@ -154,6 +154,15 @@
                                 {% endif %}
                             </div>
                         </div>
+
+                        <div class="mb-3">
+                            {{ status_form.pallet_type.label }}
+                            {{ status_form.pallet_type(class="form-control") }}
+                        </div>
+                        <div class="mb-3">
+                            {{ status_form.kg_per_pallet.label }}
+                            {{ status_form.kg_per_pallet(class="form-control", step="0.01") }}
+                        </div>
                         
                         <div class="mb-3">
                             {{ status_form.status.label }}
@@ -214,6 +223,18 @@
                             Дата производства не указана
                         </p>
                     {% endif %}
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6 class="card-title">Паллеты</h6>
+                    <p class="mb-1">
+                        <strong>Вид:</strong> {{ plan.get_pallet_type_display() }}
+                    </p>
+                    <p class="mb-0">
+                        <strong>Кг на одном паллете:</strong> {{ plan.get_kg_per_pallet_display() }}
+                    </p>
                 </div>
             </div>
         </div>

@@ -55,6 +55,15 @@ class MassControlStatus(str, enum.Enum):
             MassControlStatus.NOT_SPECIFIED: "Не указано"
         }[self]
 
+
+class PalletType(str, enum.Enum):
+    EURO = "ЕВРО"
+    FIN = "ФИН"
+
+    @property
+    def display(self):
+        return self.value
+
 class HalalStatusType(TypeDecorator):
     """Кастомный тип для правильного сохранения HalalStatus в PostgreSQL Enum"""
     # Используем String как базовый тип, но преобразуем значения вручную
@@ -311,6 +320,8 @@ class ProductionPlan(db.Model):
     okk_approved_on = Column(Date, nullable=True)
     completed_with_shortfall = Column(Boolean, default=False, nullable=False, server_default='false')
     shortfall_reason = Column(String(500), nullable=True)
+    pallet_type = Column(String(20), nullable=True)  # ЕВРО / ФИН
+    kg_per_pallet = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     created_by = Column(Integer, ForeignKey("users.id"))
@@ -442,6 +453,14 @@ class ProductionPlan(db.Model):
     def get_bezallergennost_display(self):
         names = self.get_bezallergennost_allergens()
         return ', '.join(names) if names else 'Не указано'
+
+    def get_pallet_type_display(self):
+        return self.pallet_type or 'Не указано'
+
+    def get_kg_per_pallet_display(self):
+        if self.kg_per_pallet is None:
+            return 'Не указано'
+        return f'{self.kg_per_pallet:.2f} кг'
     
     def get_halal_status(self):
         """Статус Халяль/Харам плана — только из рецептуры (шаблона), не из сырья."""
